@@ -48,51 +48,209 @@ function omamoriBase(border, body, motif) {
   ].join('');
 }
 
-// ---- Suit icons ----
-write('suit-ame.svg', [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
-  '<defs>' + glow('g') + '</defs>',
-  '<g filter="url(#g)">',
-  '<path d="M18 22c0-6 6-10 14-10s14 4 14 10v4H18v-4z" fill="#ff4fd8" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<path d="M16 26h32c2 0 4 2 4 5v18c0 6-6 11-20 11S8 55 8 49V31c0-3 2-5 4-5z" fill="#ff8ae8" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<path d="M24 34h16M24 42h12" stroke="#120a2e" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>',
-  '<circle cx="40" cy="38" r="3" fill="#fff" opacity=".7"/>',
-  '</g></svg>'
-].join(''));
+// ---- Suit icons（64×64・共通光源左上・明カード面向け弱グロー）----
+var SUIT_OUTLINE = '#120a2e';
+var SUIT_SW = '2.75';
 
-write('suit-hoshi.svg', [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
-  '<defs>' + glow('g') + '</defs>',
-  '<g filter="url(#g)">',
-  '<path d="M32 6l6.5 16.5H56l-14 11 5.5 17L32 40.5 16.5 50.5l5.5-17-14-11h17.5z" fill="#ffc43d" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<path d="M32 18l2.2 5.6H40l-4.6 3.6 1.8 5.6L32 29.6l-5.2 3.2 1.8-5.6-4.6-3.6h5.8z" fill="#ffe9a0" stroke="#120a2e" stroke-width="1.5" stroke-linejoin="round"/>',
-  '<path d="M10 28h6M48 28h6M32 2v4M32 58v4" stroke="#ffc43d" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>',
-  '</g></svg>'
-].join(''));
+function suitSoftGlow(id, color) {
+  return (
+    '<filter id="' + id + '" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">' +
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="b"/>' +
+    '<feFlood flood-color="' + color + '" flood-opacity="0.45" result="c"/>' +
+    '<feComposite in="c" in2="b" operator="in" result="g"/>' +
+    '<feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+    '</filter>'
+  );
+}
 
-write('suit-suzu.svg', [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
-  '<defs>' + glow('g') + '</defs>',
-  '<g filter="url(#g)">',
-  '<path d="M24 12h16v6H24z" fill="#9b5cff" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<path d="M20 18c0 0 2-4 12-4s12 4 12 4c6 2 10 10 10 18 0 10-6 18-22 18S8 46 8 36c0-8 4-16 10-18z" fill="#3ff3ff" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<ellipse cx="32" cy="34" rx="8" ry="6" fill="#b8fbff" stroke="#120a2e" stroke-width="2"/>',
-  '<circle cx="32" cy="52" r="5" fill="#ffc43d" stroke="#120a2e" stroke-width="3"/>',
-  '<path d="M22 28h20" stroke="#120a2e" stroke-width="2" opacity=".35"/>',
-  '</g></svg>'
-].join(''));
+function suitGrad(id, c1, c2, c3) {
+  return (
+    '<linearGradient id="' + id + '" x1="18%" y1="12%" x2="82%" y2="88%">' +
+    '<stop offset="0%" stop-color="' + c1 + '"/>' +
+    '<stop offset="48%" stop-color="' + c2 + '"/>' +
+    '<stop offset="100%" stop-color="' + c3 + '"/>' +
+    '</linearGradient>'
+  );
+}
 
-write('suit-tsuki.svg', [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
-  '<defs>' + glow('g') + '</defs>',
-  '<g filter="url(#g)">',
-  '<path d="M38 8c-14 2-24 14-24 28s10 26 24 28c-18-2-32-16-32-34S20 10 38 8z" fill="#9b5cff" stroke="#120a2e" stroke-width="3" stroke-linejoin="round"/>',
-  '<path d="M40 14c-10 3-17 12-17 22s7 19 17 22c-12-2-22-12-22-28S28 16 40 14z" fill="#c4a0ff" opacity=".55"/>',
-  '<circle cx="44" cy="22" r="2.5" fill="#ffc43d"/>',
-  '<circle cx="50" cy="34" r="1.8" fill="#3ff3ff"/>',
-  '<circle cx="46" cy="44" r="1.5" fill="#ff4fd8"/>',
-  '</g></svg>'
-].join(''));
+/** 飴: 雫型ハードキャンディ＋太めのねじり縞 */
+function suitAmeSvg() {
+  var drop =
+    'M32 7C26 16 16 26 16 38c0 10 7 17 16 17s16-7 16-17C48 26 38 16 32 7z';
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
+    '<defs>',
+    suitGrad('ame-base', '#ff9ae8', '#ff4fd8', '#c2189a'),
+    suitSoftGlow('ame-glow', '#ff4fd8'),
+    '<clipPath id="ame-clip"><path d="' + drop + '"/></clipPath>',
+    '<radialGradient id="ame-gloss" cx="34%" cy="28%" r="42%">',
+    '<stop offset="0%" stop-color="#fff" stop-opacity=".9"/>',
+    '<stop offset="55%" stop-color="#fff" stop-opacity=".15"/>',
+    '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>',
+    '</radialGradient>',
+    '</defs>',
+    '<g class="glow" filter="url(#ame-glow)" opacity=".55">',
+    '<path d="' + drop + '" fill="#ff4fd8"/>',
+    '</g>',
+    '<g class="base">',
+    '<path d="' + drop + '" fill="url(#ame-base)" stroke="' + SUIT_OUTLINE + '" stroke-width="' + SUIT_SW + '" stroke-linejoin="round"/>',
+    '</g>',
+    '<g class="inner-shadow" clip-path="url(#ame-clip)">',
+    '<path d="M40 18c8 10 10 22 4 32-4 6-12 10-20 8 14-2 22-14 16-40z" fill="#9a0f72" opacity=".35"/>',
+    '</g>',
+    // ねじり飴の太い斜め縞（白／濃ピンク交互・帯を広く）
+    '<g class="detail" clip-path="url(#ame-clip)">',
+    '<path d="M4 32L38 6l12 14L16 46z" fill="#ffffff" opacity=".88"/>',
+    '<path d="M6 48L42 18l11 13L17 61z" fill="#d01090" opacity=".55"/>',
+    '<path d="M12 60L46 32l10 12L22 72z" fill="#ffffff" opacity=".7"/>',
+    '</g>',
+    '<g class="rim" fill="none" stroke="#ffb8ef" stroke-width="1.4" stroke-linecap="round" opacity=".55">',
+    '<path d="M44 34c1 6-2 14-10 18"/>',
+    '</g>',
+    '<g class="gloss">',
+    '<ellipse cx="26" cy="26" rx="7" ry="9" fill="url(#ame-gloss)" transform="rotate(-18 26 26)"/>',
+    '<circle cx="38" cy="22" r="1.6" fill="#fff" opacity=".85"/>',
+    '<circle cx="42" cy="30" r="1" fill="#fff" opacity=".65"/>',
+    '</g>',
+    '</svg>'
+  ].join('');
+}
+
+/** 星: ふっくら5尖＋5面の面取り（右のはみ出し線なし） */
+function suitHoshiSvg() {
+  // やや丸みのある五芒星（光学中心を少し下げ）
+  var star =
+    'M32 8.5l5.2 12.4 13.3.6-10.3 8.4 3.5 12.8L32 35.8 18.3 42.7l3.5-12.8-10.3-8.4 13.3-.6z';
+  // 中心から各尖へ広がる5ファセット（輪郭の二重星にしない）
+  var c = '32 31';
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
+    '<defs>',
+    suitGrad('hoshi-base', '#ffe9a0', '#ffc43d', '#c88608'),
+    suitSoftGlow('hoshi-glow', '#ffc43d'),
+    '<clipPath id="hoshi-clip"><path d="' + star + '"/></clipPath>',
+    '</defs>',
+    '<g class="glow" filter="url(#hoshi-glow)" opacity=".5">',
+    '<path d="' + star + '" fill="#ffc43d"/>',
+    '</g>',
+    '<g class="base">',
+    '<path d="' + star + '" fill="url(#hoshi-base)" stroke="' + SUIT_OUTLINE + '" stroke-width="' + SUIT_SW + '" stroke-linejoin="round"/>',
+    '</g>',
+    '<g class="detail" clip-path="url(#hoshi-clip)">',
+    // 尖→隣の谷→中心の5面（輪郭線なし・明暗のみ）
+    '<path d="M' + c + 'L26.8 20.9 32 8.5 37.2 20.9Z" fill="#fff8d8" opacity=".65"/>',
+    '<path d="M' + c + 'L37.2 20.9 50.5 21.5 40.2 29.9Z" fill="#ffe08a" opacity=".38"/>',
+    '<path d="M' + c + 'L40.2 29.9 43.5 42.7 32 35.8Z" fill="#a86a00" opacity=".42"/>',
+    '<path d="M' + c + 'L32 35.8 20.5 42.7 23.8 29.9Z" fill="#7a4a00" opacity=".36"/>',
+    '<path d="M' + c + 'L23.8 29.9 13.5 21.5 26.8 20.9Z" fill="#fff1b8" opacity=".42"/>',
+    '</g>',
+    '<g class="gloss">',
+    '<ellipse cx="26" cy="20" rx="5.5" ry="4" fill="#fff" opacity=".55" transform="rotate(-25 26 20)"/>',
+    '<circle cx="38" cy="18" r="1.5" fill="#fff" opacity=".9"/>',
+    '</g>',
+    '</svg>'
+  ].join('');
+}
+
+/** 鈴: 丸鈴＋太め頂ループ＋横帯＋口のスリット（両端の丸穴） */
+function suitSuzuSvg() {
+  var body = 'M14 30c0-11 8-18 18-18s18 7 18 18c0 12-8 22-18 22S14 42 14 30z';
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
+    '<defs>',
+    suitGrad('suzu-base', '#b8fbff', '#3ff3ff', '#1498a8'),
+    suitSoftGlow('suzu-glow', '#3ff3ff'),
+    '<clipPath id="suzu-clip"><path d="' + body + '"/></clipPath>',
+    '<radialGradient id="suzu-gloss" cx="32%" cy="30%" r="45%">',
+    '<stop offset="0%" stop-color="#fff" stop-opacity=".85"/>',
+    '<stop offset="60%" stop-color="#fff" stop-opacity=".1"/>',
+    '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>',
+    '</radialGradient>',
+    '</defs>',
+    '<g class="glow" filter="url(#suzu-glow)" opacity=".5">',
+    '<path d="' + body + '" fill="#3ff3ff"/>',
+    '<path d="M32 5c-5 0-8.5 3.5-8.5 8.5V15h17v-1.5C40.5 8.5 37 5 32 5z" fill="#3ff3ff"/>',
+    '</g>',
+    '<g class="base">',
+    // 頂ループ（塗りで太さを確保）
+    '<path d="M32 4.5c-4.8 0-8.5 3.7-8.5 8.5V16h5V12.5c0-2 1.5-3.5 3.5-3.5s3.5 1.5 3.5 3.5V16h5v-3C40.5 8.2 36.8 4.5 32 4.5z" fill="#7af7ff" stroke="' + SUIT_OUTLINE + '" stroke-width="' + SUIT_SW + '" stroke-linejoin="round"/>',
+    '<path d="' + body + '" fill="url(#suzu-base)" stroke="' + SUIT_OUTLINE + '" stroke-width="' + SUIT_SW + '" stroke-linejoin="round"/>',
+    '</g>',
+    '<g class="inner-shadow" clip-path="url(#suzu-clip)">',
+    '<path d="M38 20c10 8 12 22 4 32-6 7-16 10-24 6 16-2 26-16 20-38z" fill="#0d6e7a" opacity=".32"/>',
+    '</g>',
+    '<g class="detail">',
+    '<path d="M16 31h32" stroke="' + SUIT_OUTLINE + '" stroke-width="2.2" stroke-linecap="round" opacity=".35"/>',
+    '<rect x="17" y="28.5" width="30" height="5" rx="2" fill="#9ef8ff" stroke="' + SUIT_OUTLINE + '" stroke-width="1.4" opacity=".75"/>',
+    // 口: 暗いスリット＋両端の丸穴（小サイズでも読める）
+    '<rect x="26" y="45" width="12" height="3.6" rx="1.2" fill="#0a4a55"/>',
+    '<circle cx="26" cy="46.8" r="2.6" fill="#062830"/>',
+    '<circle cx="38" cy="46.8" r="2.6" fill="#062830"/>',
+    '<circle cx="26" cy="46.8" r="1.3" fill="#041820"/>',
+    '<circle cx="38" cy="46.8" r="1.3" fill="#041820"/>',
+    '</g>',
+    '<g class="rim" fill="none" stroke="#b8fbff" stroke-width="1.3" stroke-linecap="round" opacity=".5">',
+    '<path d="M46 34c0 8-5 16-12 19"/>',
+    '</g>',
+    '<g class="gloss">',
+    '<ellipse cx="24" cy="26" rx="8" ry="10" fill="url(#suzu-gloss)"/>',
+    '<circle cx="40" cy="24" r="1.5" fill="#fff" opacity=".85"/>',
+    '</g>',
+    '</svg>'
+  ].join('');
+}
+
+/** 月: ふっくら三日月（最厚部≈24–26／64）＋クレーター */
+function suitTsukiSvg() {
+  // ベジェで太いクレセント（左が厚い・先端丸・開口は右）
+  // 中央付近: 外縁 x≈6 → 内縁 x≈31 → 厚さ≈25
+  var crescent =
+    'M51 10C26 5 5 13 5 32C5 51 26 59 51 54C37 50 33 42 33 32C33 22 37 14 51 10z';
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">',
+    '<defs>',
+    suitGrad('tsuki-base', '#c9b6ff', '#a894ff', '#8a6cff'),
+    suitSoftGlow('tsuki-glow', '#9b5cff'),
+    '<clipPath id="tsuki-clip"><path d="' + crescent + '"/></clipPath>',
+    '<radialGradient id="tsuki-gloss" cx="28%" cy="30%" r="48%">',
+    '<stop offset="0%" stop-color="#fff" stop-opacity=".85"/>',
+    '<stop offset="55%" stop-color="#fff" stop-opacity=".12"/>',
+    '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>',
+    '</radialGradient>',
+    '</defs>',
+    '<g class="glow" filter="url(#tsuki-glow)" opacity=".5">',
+    '<path d="' + crescent + '" fill="#a894ff"/>',
+    '</g>',
+    '<g class="base">',
+    '<path d="' + crescent + '" fill="url(#tsuki-base)" stroke="' + SUIT_OUTLINE + '" stroke-width="' + SUIT_SW + '" stroke-linejoin="round"/>',
+    '</g>',
+    '<g class="inner-shadow" clip-path="url(#tsuki-clip)">',
+    '<path d="M20 22c2 14 12 26 28 28-16-1-26-14-28-28 0-5 1-9 3-13-1 3-3 8-3 13z" fill="#5a48b0" opacity=".42"/>',
+    '</g>',
+    '<g class="detail" clip-path="url(#tsuki-clip)">',
+    '<circle cx="18" cy="26" r="4.2" fill="#6e5ad0" opacity=".7"/>',
+    '<circle cx="16" cy="40" r="3.2" fill="#5a48b0" opacity=".65"/>',
+    '<circle cx="24" cy="48" r="2.6" fill="#6e5ad0" opacity=".6"/>',
+    '</g>',
+    '<g class="rim" fill="none" stroke="#e4d8ff" stroke-width="1.8" stroke-linecap="round" opacity=".7">',
+    '<path d="M34 18c-1 5-1 12 1 18 2 6 6 11 11 14"/>',
+    '</g>',
+    '<g class="gloss">',
+    '<ellipse cx="16" cy="22" rx="7" ry="11" fill="url(#tsuki-gloss)" transform="rotate(-6 16 22)"/>',
+    '<circle cx="20" cy="15" r="1.7" fill="#fff" opacity=".9"/>',
+    '</g>',
+    '</svg>'
+  ].join('');
+}
+
+function writeSuitIcons() {
+  write('suit-ame.svg', suitAmeSvg());
+  write('suit-hoshi.svg', suitHoshiSvg());
+  write('suit-suzu.svg', suitSuzuSvg());
+  write('suit-tsuki.svg', suitTsukiSvg());
+}
+
+writeSuitIcons();
 
 write('card-back.svg', [
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 200" fill="none">',

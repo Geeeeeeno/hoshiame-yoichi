@@ -9,6 +9,7 @@
 <body>
   <div class="sky" aria-hidden="true">
     <img class="sky-art" src="assets/bg.svg" alt="" />
+    <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
     <div class="sky-neon sky-neon-a"></div>
     <div class="sky-neon sky-neon-b"></div>
     <div class="sky-neon sky-neon-c"></div>
@@ -109,6 +110,9 @@
         <img class="btn-icon" src="assets/ui/discard.svg" alt="" draggable="false" />
         捨てる
       </button>
+      <button type="button" class="btn tiny" id="btn-deselect" hidden disabled>
+        選択解除
+      </button>
     </section>
 
     <details class="howto">
@@ -156,6 +160,7 @@
   </div>
 
   <script src="audio.js"></script>
+  <script src="bg-fx.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

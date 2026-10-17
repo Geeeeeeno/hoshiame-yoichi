@@ -580,6 +580,24 @@ function sellPrice(omamoriId) {
   return Math.max(1, Math.floor(def.price / 2));
 }
 
+/**
+ * 選択中カードをすべて解除する（純粋関数）。
+ * @param {Object} selectedMap id→truthy の選択マップ
+ * @returns {{ selected: Object, cleared: number }}
+ */
+function clearSelection(selectedMap) {
+  var cleared = 0;
+  var key;
+  if (selectedMap) {
+    for (key in selectedMap) {
+      if (Object.prototype.hasOwnProperty.call(selectedMap, key) && selectedMap[key]) {
+        cleared += 1;
+      }
+    }
+  }
+  return { selected: {}, cleared: cleared };
+}
+
 // ---------------------------------------------------------------------------
 // Node 用エクスポート
 // ---------------------------------------------------------------------------
@@ -605,7 +623,8 @@ if (typeof module !== 'undefined' && module.exports) {
     sellPrice: sellPrice,
     sumRankValues: sumRankValues,
     isFlush: isFlush,
-    isStraight: isStraight
+    isStraight: isStraight,
+    clearSelection: clearSelection
   };
 }
 
@@ -723,6 +742,39 @@ if (typeof document !== 'undefined') {
       var discardBtn = el('btn-discard');
       if (playBtn) playBtn.disabled = !on || !state || state.playsLeft <= 0 || state.phase !== 'play';
       if (discardBtn) discardBtn.disabled = !on || !state || state.discardsLeft <= 0 || state.phase !== 'play';
+      updateDeselectButton(on);
+    }
+
+    function selectedCount() {
+      return state ? Object.keys(state.selected).length : 0;
+    }
+
+    function updateDeselectButton(actionsOn) {
+      var btn = el('btn-deselect');
+      if (!btn) return;
+      var can = !!(state && state.phase === 'play' && selectedCount() > 0 && actionsOn !== false && !animBusy);
+      btn.hidden = !can;
+      btn.disabled = !can;
+      var playBtn = el('btn-play');
+      if (playBtn) {
+        if (can) playBtn.classList.add('has-selection');
+        else playBtn.classList.remove('has-selection');
+      }
+    }
+
+    /**
+     * 選択をすべて解除。何も選んでいなければ SE も再描画もしない。
+     * @returns {number} 解除した枚数
+     */
+    function deselectAllCards() {
+      if (!state || state.phase !== 'play' || animBusy) return 0;
+      var result = clearSelection(state.selected);
+      if (result.cleared === 0) return 0;
+      state.selected = result.selected;
+      sfx('deselectAll');
+      state.message = '';
+      render({ skipDeal: true });
+      return result.cleared;
     }
 
     function toggleSelect(cardId) {
@@ -1619,6 +1671,7 @@ if (typeof document !== 'undefined') {
       } else {
         preview.textContent = '';
       }
+      updateDeselectButton(!animBusy);
 
       if (pendingOmamoriGlow.length) {
         var glowNames = pendingOmamoriGlow.slice();
@@ -1639,14 +1692,32 @@ if (typeof document !== 'undefined') {
     }
 
     function bind() {
+      var tableArea = document.querySelector('.table-area');
+
       el('hand').addEventListener('click', function (e) {
         var btn = e.target.closest('[data-card]');
         if (!btn || animBusy) return;
         toggleSelect(btn.getAttribute('data-card'));
       });
 
+      // 右クリックで全選択解除（ブラウザメニューは出さない）
+      if (tableArea) {
+        tableArea.addEventListener('contextmenu', function (e) {
+          e.preventDefault();
+          deselectAllCards();
+        });
+        // モバイル等: カード／ボタン以外の卓タップで解除
+        tableArea.addEventListener('click', function (e) {
+          if (e.target.closest('[data-card]') || e.target.closest('button')) return;
+          deselectAllCards();
+        });
+      }
+
       el('btn-play').addEventListener('click', playHand);
       el('btn-discard').addEventListener('click', discardHand);
+      el('btn-deselect').addEventListener('click', function () {
+        deselectAllCards();
+      });
       el('btn-restart').addEventListener('click', restart);
       el('btn-restart-overlay').addEventListener('click', restart);
 

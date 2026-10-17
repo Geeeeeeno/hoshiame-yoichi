@@ -221,6 +221,19 @@
         volume: 0.16
       });
     },
+    /** 全選択解除：短く柔らかい下降2音（deselect より静か） */
+    deselectAll: function () {
+      playTone({
+        wave: 'sine', freq: 480, freqEnd: 340,
+        attack: 0.002, decay: 0.035, sustain: 0.01, release: 0.05,
+        volume: 0.1, filterFreq: 1800, filterType: 'lowpass'
+      });
+      playTone({
+        wave: 'triangle', freq: 360, freqEnd: 260,
+        attack: 0.002, decay: 0.04, sustain: 0.008, release: 0.06,
+        volume: 0.07, delay: 0.045, filterFreq: 1400, filterType: 'lowpass'
+      });
+    },
     flip: function () {
       playTone({
         wave: 'noise',

@@ -264,6 +264,26 @@ test('nextRound: アンテ8ボスで勝利', function () {
   assert.strictEqual(n.won, true);
 });
 
+// ---- 選択解除 ----
+
+test('clearSelection: 選択を空にし解除枚数を返す', function () {
+  var map = { a: true, b: true, c: true };
+  var r = g.clearSelection(map);
+  assert.deepStrictEqual(r.selected, {});
+  assert.strictEqual(r.cleared, 3);
+  // 入力は変更しない（純粋）
+  assert.strictEqual(map.a, true);
+  assert.strictEqual(Object.keys(map).length, 3);
+});
+
+test('clearSelection: 空マップは cleared=0', function () {
+  var r = g.clearSelection({});
+  assert.deepStrictEqual(r.selected, {});
+  assert.strictEqual(r.cleared, 0);
+  var r2 = g.clearSelection(null);
+  assert.strictEqual(r2.cleared, 0);
+});
+
 // ---- まとめ ----
 
 console.log('');
