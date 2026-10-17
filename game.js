@@ -8,11 +8,43 @@
 // ---------------------------------------------------------------------------
 
 var SUITS = [
-  { id: 'ame', name: '飴', emoji: '🍬', color: '#e85d4c' },
-  { id: 'hoshi', name: '星', emoji: '⭐', color: '#d4a017' },
-  { id: 'suzu', name: '鈴', emoji: '🔔', color: '#2a9d8f' },
-  { id: 'tsuki', name: '月', emoji: '🌙', color: '#4a6fa5' }
+  { id: 'ame', name: '飴', icon: 'assets/suit-ame.svg', color: '#ff4fd8' },
+  { id: 'hoshi', name: '星', icon: 'assets/suit-hoshi.svg', color: '#ffc43d' },
+  { id: 'suzu', name: '鈴', icon: 'assets/suit-suzu.svg', color: '#3ff3ff' },
+  { id: 'tsuki', name: '月', icon: 'assets/suit-tsuki.svg', color: '#9b5cff' }
 ];
+
+/** 伝統的ピップ配置（％座標・カード中央エリア基準） */
+var PIP_LAYOUTS = {
+  2: [[50, 18], [50, 82]],
+  3: [[50, 18], [50, 50], [50, 82]],
+  4: [[28, 22], [72, 22], [28, 78], [72, 78]],
+  5: [[28, 22], [72, 22], [50, 50], [28, 78], [72, 78]],
+  6: [[28, 22], [72, 22], [28, 50], [72, 50], [28, 78], [72, 78]],
+  7: [[28, 18], [72, 18], [50, 42], [28, 50], [72, 50], [28, 82], [72, 82]],
+  8: [[28, 16], [72, 16], [28, 38], [72, 38], [28, 62], [72, 62], [28, 84], [72, 84]],
+  9: [[28, 16], [72, 16], [28, 38], [50, 38], [72, 38], [28, 62], [72, 62], [28, 84], [72, 84]],
+  10: [[28, 14], [72, 14], [28, 32], [72, 32], [50, 40], [50, 60], [28, 68], [72, 68], [28, 86], [72, 86]]
+};
+
+var FACE_ART = {
+  11: 'assets/faces/jack.svg',
+  12: 'assets/faces/queen.svg',
+  13: 'assets/faces/king.svg'
+};
+
+var OMAMORI_RARITY = {
+  high_inori: 'common',
+  amedama: 'uncommon',
+  hoshikuzu: 'uncommon',
+  ame_bell: 'rare',
+  tsukiakari: 'rare',
+  straight_toro: 'rare',
+  pair_musubi: 'rare',
+  flush_chochin: 'rare',
+  manten_hoshi: 'epic',
+  yotsu_hoshi: 'epic'
+};
 
 var RANK_LABELS = {
   2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
@@ -43,6 +75,7 @@ var OMAMORI_DEFS = [
     name: '星くずのおまもり',
     desc: '役を出すたび倍率 +4',
     price: 5,
+    icon: 'assets/omamori/hoshikuzu.svg',
     effect: { type: 'add_mult', value: 4 }
   },
   {
@@ -50,6 +83,7 @@ var OMAMORI_DEFS = [
     name: '飴玉のおまもり',
     desc: '役を出すたびチップ +30',
     price: 4,
+    icon: 'assets/omamori/amedama.svg',
     effect: { type: 'add_chips', value: 30 }
   },
   {
@@ -57,6 +91,7 @@ var OMAMORI_DEFS = [
     name: 'ほしあめの鈴',
     desc: '得点カードの飴1枚につきチップ +15',
     price: 6,
+    icon: 'assets/omamori/ame_bell.svg',
     effect: { type: 'suit_chips', suit: 'ame', value: 15 }
   },
   {
@@ -64,6 +99,7 @@ var OMAMORI_DEFS = [
     name: '月あかりのおまもり',
     desc: '得点カードの月1枚につきチップ +15',
     price: 6,
+    icon: 'assets/omamori/tsukiakari.svg',
     effect: { type: 'suit_chips', suit: 'tsuki', value: 15 }
   },
   {
@@ -71,6 +107,7 @@ var OMAMORI_DEFS = [
     name: 'ペア結び',
     desc: 'ワンペア・ツーペアのとき倍率 ×2',
     price: 7,
+    icon: 'assets/omamori/pair_musubi.svg',
     effect: { type: 'hand_mult_mul', hands: ['pair', 'two_pair'], value: 2 }
   },
   {
@@ -78,6 +115,7 @@ var OMAMORI_DEFS = [
     name: 'ストレート灯籠',
     desc: 'ストレート系のときチップ +40',
     price: 6,
+    icon: 'assets/omamori/straight_toro.svg',
     effect: { type: 'hand_chips', hands: ['straight', 'straight_flush'], value: 40 }
   },
   {
@@ -85,6 +123,7 @@ var OMAMORI_DEFS = [
     name: 'フラッシュ提灯',
     desc: 'フラッシュ系のとき倍率 +4',
     price: 7,
+    icon: 'assets/omamori/flush_chochin.svg',
     effect: { type: 'hand_mult', hands: ['flush', 'straight_flush'], value: 4 }
   },
   {
@@ -92,6 +131,7 @@ var OMAMORI_DEFS = [
     name: '満天ほし',
     desc: 'フルハウスのとき倍率 ×2',
     price: 8,
+    icon: 'assets/omamori/manten_hoshi.svg',
     effect: { type: 'hand_mult_mul', hands: ['full_house'], value: 2 }
   },
   {
@@ -99,6 +139,7 @@ var OMAMORI_DEFS = [
     name: '四つ星おまもり',
     desc: 'フォーカードのときチップ +50・倍率 +5',
     price: 9,
+    icon: 'assets/omamori/yotsu_hoshi.svg',
     effect: { type: 'four_bonus', chips: 50, mult: 5 }
   },
   {
@@ -106,6 +147,7 @@ var OMAMORI_DEFS = [
     name: 'ハイカードの祈り',
     desc: 'ハイカードのときチップ +20・倍率 +2',
     price: 3,
+    icon: 'assets/omamori/high_inori.svg',
     effect: { type: 'hand_chips_mult', hands: ['high_card'], chips: 20, mult: 2 }
   }
 ];
@@ -159,7 +201,43 @@ function suitInfo(suitId) {
 
 function cardLabel(card) {
   var s = suitInfo(card.suit);
-  return s.emoji + RANK_LABELS[card.rank];
+  return s.name + RANK_LABELS[card.rank];
+}
+
+function omamoriRarity(id) {
+  return OMAMORI_RARITY[id] || 'common';
+}
+
+function suitIconHtml(suitId, cls) {
+  var s = suitInfo(suitId);
+  return '<img class="' + (cls || 'suit-icon') + '" src="' + s.icon + '" alt="' + s.name + '" draggable="false" />';
+}
+
+function cardCenterHtml(card) {
+  var s = suitInfo(card.suit);
+  if (card.rank === 14) {
+    return (
+      '<span class="card-ace">' +
+      '<img src="' + s.icon + '" alt="' + s.name + '" draggable="false" />' +
+      '</span>'
+    );
+  }
+  if (FACE_ART[card.rank]) {
+    return (
+      '<span class="card-face-art">' +
+      '<img src="' + FACE_ART[card.rank] + '" alt="' + RANK_LABELS[card.rank] + '" draggable="false" />' +
+      '</span>'
+    );
+  }
+  var layout = PIP_LAYOUTS[card.rank] || PIP_LAYOUTS[2];
+  var html = '<span class="card-pips" aria-hidden="true">';
+  for (var i = 0; i < layout.length; i++) {
+    html +=
+      '<img class="pip" src="' + s.icon + '" alt="" draggable="false" style="left:' +
+      layout[i][0] + '%;top:' + layout[i][1] + '%" />';
+  }
+  html += '</span>';
+  return html;
 }
 
 // ---------------------------------------------------------------------------
@@ -546,6 +624,25 @@ if (typeof document !== 'undefined') {
     var shopEnterNext = false;
     var pendingOmamoriGlow = [];
     var BIG_SCORE = 80;
+    var lastPhase = null;
+
+    function sfx(name) {
+      if (typeof window === 'undefined' || !window.HoshiameAudio) return;
+      try { window.HoshiameAudio.play(name); } catch (e) { /* ignore */ }
+    }
+
+    function audioApi() {
+      return (typeof window !== 'undefined' && window.HoshiameAudio) ? window.HoshiameAudio : null;
+    }
+
+    function setAudioBgmMode(mode) {
+      var a = audioApi();
+      if (!a) return;
+      try {
+        a.setBgmMode(mode);
+        if (a.isStarted && a.isStarted()) a.startBgm(mode);
+      } catch (e) { /* ignore */ }
+    }
 
     function freshState() {
       return {
@@ -632,6 +729,7 @@ if (typeof document !== 'undefined') {
       if (state.phase !== 'play' || animBusy) return;
       if (state.selected[cardId]) {
         delete state.selected[cardId];
+        sfx('deselect');
       } else {
         var n = Object.keys(state.selected).length;
         if (n >= MAX_SELECT) {
@@ -640,6 +738,7 @@ if (typeof document !== 'undefined') {
           return;
         }
         state.selected[cardId] = true;
+        sfx('select');
       }
       state.message = '';
       render({ skipDeal: true });
@@ -694,12 +793,15 @@ if (typeof document !== 'undefined') {
         }
       }
 
+      sfx('play');
+
       if (reduceMotion()) {
         var quick = applyPlayResult(result);
+        playScoreSfx(result, bigHit, quick);
         if (quick === 'clear') onRoundClear();
         displayedScore = state.score;
         if (state.phase === 'shop') shopEnterNext = true;
-        render({ skipDeal: true, popEq: true, shakeEq: bigHit });
+        render({ skipDeal: true, popEq: true, shakeEq: bigHit, handFlash: result.hand.type });
         return;
       }
 
@@ -707,23 +809,29 @@ if (typeof document !== 'undefined') {
       setActionsEnabled(false);
       flyCardsToScore(selectedIds, function () {
         var outcome = applyPlayResult(result);
+        playScoreSfx(result, bigHit, outcome);
         render({
           dealNew: true,
           popEq: true,
           shakeEq: bigHit || outcome === 'clear',
           scoreFrom: scoreBefore,
-          flashBig: bigHit || outcome === 'clear'
+          flashBig: bigHit || outcome === 'clear',
+          handFlash: result.hand.type,
+          screenShake: bigHit || outcome === 'clear'
         });
         after(bigHit || outcome === 'clear' ? 850 : 600, function () {
           if (outcome === 'clear') {
             onRoundClear();
             var bannerText = state.phase === 'won' ? '夜市優勝！' : 'ラウンドクリア！';
+            sfx('roundClear');
             showRoundBanner(bannerText, function () {
               animBusy = false;
               if (state.phase === 'shop') shopEnterNext = true;
               render({ skipDeal: true });
             });
           } else if (outcome === 'lost') {
+            sfx('fail');
+            after(200, function () { sfx('gameOver'); });
             animBusy = false;
             render({ skipDeal: true });
           } else {
@@ -732,6 +840,26 @@ if (typeof document !== 'undefined') {
           }
         });
       });
+    }
+
+    function playScoreSfx(result, bigHit, outcome) {
+      var ticks = Math.min(12, 4 + Math.floor((result.chips || 10) / 20));
+      if (audioApi() && audioApi().sfx && audioApi().sfx.chipCount) {
+        audioApi().sfx.chipCount(ticks);
+      } else {
+        sfx('chipTick');
+      }
+      setTimeout(function () { sfx('multHit'); }, ticks * 55 + 40);
+      if (bigHit) {
+        setTimeout(function () { sfx('bigScore'); }, ticks * 55 + 120);
+      }
+      if (outcome === 'lost' && reduceMotion()) {
+        sfx('fail');
+        setTimeout(function () { sfx('gameOver'); }, 250);
+      }
+      if (outcome === 'clear' && reduceMotion()) {
+        setTimeout(function () { sfx('roundClear'); }, 200);
+      }
     }
 
     function discardHand() {
@@ -744,6 +872,7 @@ if (typeof document !== 'undefined') {
       }
 
       var selectedIds = cards.map(function (c) { return c.id; });
+      sfx('discard');
 
       function finishDiscard() {
         state.discardsLeft -= 1;
@@ -784,9 +913,32 @@ if (typeof document !== 'undefined') {
       state.roundType = nxt.roundType;
       state.phase = 'shop';
       state.shopOffers = pickShopOffers(state.omamori);
+      setAudioBgmMode('shop');
       state.message =
         'クリア！ 報酬 +' + reward.total +
         '（基本' + reward.base + '・出す残り' + reward.playBonus + '・利子' + reward.interest + '）';
+    }
+
+    function phaseTransition(kind) {
+      if (reduceMotion()) return;
+      var layout = document.querySelector('.layout');
+      if (!layout) return;
+      layout.classList.remove('phase-enter', 'phase-exit');
+      void layout.offsetWidth;
+      layout.classList.add(kind === 'exit' ? 'phase-exit' : 'phase-enter');
+      setTimeout(function () {
+        layout.classList.remove('phase-enter', 'phase-exit');
+      }, kind === 'exit' ? 300 : 420);
+    }
+
+    function triggerScreenShake() {
+      if (reduceMotion()) return;
+      document.body.classList.remove('screen-shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('screen-shake');
+      setTimeout(function () {
+        document.body.classList.remove('screen-shake');
+      }, 480);
     }
 
     function buyOmamori(offerIndex) {
@@ -808,6 +960,7 @@ if (typeof document !== 'undefined') {
       state.shopOffers.splice(offerIndex, 1);
       state.message = offer.name + 'を買いました';
       pendingOmamoriGlow = [offer.name];
+      sfx('buy');
       render({ skipDeal: true });
     }
 
@@ -819,6 +972,7 @@ if (typeof document !== 'undefined') {
       state.omamori.splice(ownedIndex, 1);
       state.money += price;
       state.message = (getOmamoriDef(id).name) + 'を' + price + 'で売却';
+      sfx('sell');
       render({ skipDeal: true });
     }
 
@@ -833,21 +987,25 @@ if (typeof document !== 'undefined') {
       state.shopOffers = pickShopOffers(state.omamori);
       state.message = '商品を入れ替えました（-' + REROLL_COST + '）';
       shopEnterNext = true;
+      sfx('reroll');
       render({ skipDeal: true });
     }
 
     function leaveShop() {
       if (state.phase !== 'shop' || animBusy) return;
+      setAudioBgmMode('play');
       var shopArea = el('shop');
       if (!reduceMotion() && shopArea && !shopArea.hidden) {
         animBusy = true;
         shopArea.classList.remove('shop-enter');
         shopArea.classList.add('shop-exit');
+        phaseTransition('exit');
         after(280, function () {
           shopArea.classList.remove('shop-exit');
           startRound({ deal: true });
           animBusy = false;
           render();
+          phaseTransition('enter');
         });
         return;
       }
@@ -860,9 +1018,11 @@ if (typeof document !== 'undefined') {
       knownHandIds = {};
       displayedScore = 0;
       pendingOmamoriGlow = [];
+      lastPhase = null;
       hideRoundBanner();
       clearFx();
       state = freshState();
+      setAudioBgmMode('play');
       startRound({ deal: true });
       render();
     }
@@ -894,6 +1054,21 @@ if (typeof document !== 'undefined') {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }
 
+    function spawnTrail(x, y, color) {
+      var layer = el('fx-layer');
+      if (!layer || reduceMotion()) return;
+      var trail = document.createElement('span');
+      trail.className = 'fly-trail';
+      trail.style.left = x + 'px';
+      trail.style.top = y + 'px';
+      trail.style.color = color || '#3ff3ff';
+      trail.style.background = color || '#3ff3ff';
+      layer.appendChild(trail);
+      setTimeout(function () {
+        if (trail.parentNode) trail.parentNode.removeChild(trail);
+      }, 360);
+    }
+
     function flyCardsToScore(cardIds, done) {
       var handArea = el('hand');
       var target = el('scoreboard') || el('breakdown');
@@ -907,12 +1082,13 @@ if (typeof document !== 'undefined') {
       var ty = tRect.top + tRect.height * 0.45;
       var count = 0;
       var total = 0;
+      var trailColors = ['#ff4fd8', '#3ff3ff', '#ffc43d', '#9b5cff'];
 
       for (var i = 0; i < cardIds.length; i++) {
         var btn = handArea.querySelector('[data-card="' + cardIds[i] + '"]');
         if (!btn) continue;
         total++;
-        (function (src, delay) {
+        (function (src, delay, color) {
           var rect = src.getBoundingClientRect();
           src.classList.add('playing-out');
           var ghost = src.cloneNode(true);
@@ -926,13 +1102,23 @@ if (typeof document !== 'undefined') {
             ghost.style.left = (tx - rect.width * 0.2) + 'px';
             ghost.style.top = (ty - rect.height * 0.2) + 'px';
             ghost.classList.add('fly-to-score');
+            var steps = 3;
+            for (var t = 1; t <= steps; t++) {
+              (function (step) {
+                setTimeout(function () {
+                  var gx = rect.left + ((tx - rect.width * 0.2) - rect.left) * (step / (steps + 1));
+                  var gy = rect.top + ((ty - rect.height * 0.2) - rect.top) * (step / (steps + 1));
+                  spawnTrail(gx + rect.width / 2, gy + rect.height / 2, color);
+                }, step * 70);
+              })(t);
+            }
           }, delay);
           setTimeout(function () {
             if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
             count++;
             if (count >= total) done();
           }, delay + 480);
-        })(btn, i * 55);
+        })(btn, i * 55, trailColors[i % trailColors.length]);
       }
 
       if (total === 0) done();
@@ -1052,11 +1238,12 @@ if (typeof document !== 'undefined') {
       requestAnimationFrame(tick);
     }
 
-    function triggerFlash(big) {
+    function triggerFlash(big, handType) {
       var layer = el('fx-layer');
       if (!layer || reduceMotion()) return;
       var flash = document.createElement('div');
       flash.className = 'fx-flash';
+      if (handType) flash.className += ' hand-' + handType;
       if (!big) flash.style.opacity = '0.5';
       layer.appendChild(flash);
       setTimeout(function () {
@@ -1074,6 +1261,9 @@ if (typeof document !== 'undefined') {
         scoreEl.textContent = to;
         return;
       }
+      scoreEl.classList.remove('score-bounce');
+      void scoreEl.offsetWidth;
+      scoreEl.classList.add('score-bounce');
       var start = performance.now();
       var dur = Math.min(700, 280 + Math.abs(to - from) * 2);
       function step(now) {
@@ -1127,16 +1317,20 @@ if (typeof document !== 'undefined') {
     }
 
     function glowOmamori(names) {
-      if (!names || !names.length || reduceMotion()) return;
+      if (!names || !names.length) return;
+      sfx('omamori');
+      if (reduceMotion()) return;
       var chips = el('omamori-list').querySelectorAll('.omamori-chip');
       for (var i = 0; i < chips.length; i++) {
         var strong = chips[i].querySelector('strong');
         if (!strong) continue;
         for (var n = 0; n < names.length; n++) {
           if (strong.textContent === names[n]) {
-            chips[i].classList.add('omamori-glow');
+            chips[i].classList.add('omamori-glow', 'omamori-bounce');
             (function (node) {
-              setTimeout(function () { node.classList.remove('omamori-glow'); }, 900);
+              setTimeout(function () {
+                node.classList.remove('omamori-glow', 'omamori-bounce');
+              }, 900);
             })(chips[i]);
           }
         }
@@ -1148,7 +1342,7 @@ if (typeof document !== 'undefined') {
     function renderCard(card, selectable, dealClass, delayMs, dealX, dealY) {
       var s = suitInfo(card.suit);
       var selected = !!state.selected[card.id];
-      var cls = 'card' +
+      var cls = 'card card--' + s.id +
         (selected ? ' selected' : '') +
         (selectable ? ' selectable' : '') +
         (dealClass ? ' ' + dealClass : '');
@@ -1157,14 +1351,39 @@ if (typeof document !== 'undefined') {
         style += ';--deal-x:' + (dealX || -80) + 'px;--deal-y:' + (dealY || -40) + 'px';
         style += ';animation-delay:' + (delayMs || 0) + 'ms';
       }
+      var corner =
+        '<span class="card-corner">' +
+        '<span class="card-rank">' + RANK_LABELS[card.rank] + '</span>' +
+        suitIconHtml(card.suit, 'card-suit-mini') +
+        '</span>';
       return (
         '<button type="button" class="' + cls + '" data-card="' + card.id + '"' +
-        ' style="' + style + '" aria-pressed="' + selected + '">' +
+        ' style="' + style + '" aria-pressed="' + selected + '"' +
+        ' aria-label="' + s.name + RANK_LABELS[card.rank] + '">' +
+        corner +
+        '<span class="card-center">' + cardCenterHtml(card) + '</span>' +
+        '<span class="card-corner card-corner--br">' +
         '<span class="card-rank">' + RANK_LABELS[card.rank] + '</span>' +
-        '<span class="card-suit">' + s.emoji + '</span>' +
-        '<span class="card-suit-name">' + s.name + '</span>' +
+        suitIconHtml(card.suit, 'card-suit-mini') +
+        '</span>' +
         '</button>'
       );
+    }
+
+    function renderOmamoriChip(def, sellIndex) {
+      var rarity = omamoriRarity(def.id);
+      var html =
+        '<div class="omamori-chip rarity-' + rarity + '" data-omamori-name="' + def.name + '" title="' + def.desc + '">' +
+        '<img class="omamori-art" src="' + def.icon + '" alt="" draggable="false" />' +
+        '<div class="omamori-meta">' +
+        '<strong>' + def.name + '</strong><span>' + def.desc + '</span>';
+      if (typeof sellIndex === 'number') {
+        html +=
+          '<button type="button" class="btn tiny" data-sell="' + sellIndex + '">売却(' +
+          sellPrice(def.id) + ')</button>';
+      }
+      html += '</div></div>';
+      return html;
     }
 
     function render(opts) {
@@ -1173,10 +1392,7 @@ if (typeof document !== 'undefined') {
 
       el('ante').textContent = state.ante;
       el('round-type').textContent = roundTypeName(state.roundType);
-      el('money').textContent = state.money;
       el('target').textContent = state.target;
-      el('plays').textContent = state.playsLeft;
-      el('discards').textContent = state.discardsLeft;
 
       if (typeof opts.scoreFrom === 'number' && !reduceMotion()) {
         animateScoreCount(opts.scoreFrom, state.score);
@@ -1204,18 +1420,29 @@ if (typeof document !== 'undefined') {
       } else {
         for (var i = 0; i < state.omamori.length; i++) {
           var d = getOmamoriDef(state.omamori[i]);
-          omaHtml +=
-            '<div class="omamori-chip" data-omamori-name="' + d.name + '" title="' + d.desc + '">' +
-            '<strong>' + d.name + '</strong><span>' + d.desc + '</span>';
-          if (state.phase === 'shop') {
-            omaHtml +=
-              '<button type="button" class="btn tiny" data-sell="' + i + '">売却(' +
-              sellPrice(d.id) + ')</button>';
-          }
-          omaHtml += '</div>';
+          omaHtml += renderOmamoriChip(d, state.phase === 'shop' ? i : undefined);
         }
       }
       el('omamori-list').innerHTML = omaHtml;
+
+      var moneyEl = el('money');
+      if (moneyEl) {
+        moneyEl.innerHTML =
+          '<img class="hud-icon" src="assets/ui/coin.svg" alt="" draggable="false" />' +
+          '<span>' + state.money + '</span>';
+      }
+      var playsEl = el('plays');
+      if (playsEl) {
+        playsEl.innerHTML =
+          '<img class="hud-icon" src="assets/ui/play.svg" alt="" draggable="false" />' +
+          '<span>' + state.playsLeft + '</span>';
+      }
+      var discardsEl = el('discards');
+      if (discardsEl) {
+        discardsEl.innerHTML =
+          '<img class="hud-icon" src="assets/ui/discard.svg" alt="" draggable="false" />' +
+          '<span>' + state.discardsLeft + '</span>';
+      }
 
       var handArea = el('hand');
       var shopArea = el('shop');
@@ -1251,6 +1478,12 @@ if (typeof document !== 'undefined') {
             var approxTop = handRect.top + 40;
             dx = origin.x - approxLeft;
             dy = origin.y - approxTop;
+            (function (d, flip) {
+              setTimeout(function () {
+                sfx('deal');
+                if (flip) sfx('flip');
+              }, d);
+            })(delay, dealClass === 'flipping');
           }
           h += renderCard(card, true, dealClass, delay, dx, dy);
         }
@@ -1269,20 +1502,27 @@ if (typeof document !== 'undefined') {
         overlay.hidden = true;
         if (deckPile) deckPile.style.visibility = 'hidden';
         knownHandIds = {};
+        var enteringShop = shopEnterNext || lastPhase !== 'shop';
 
         var sh =
+          '<div class="shop-noren" aria-hidden="true"><span>夜市ショップ</span></div>' +
           '<p class="shop-intro">次は アンテ' + state.ante + '・' +
           roundTypeName(state.roundType) +
           '（目標 ' + getTargetScore(state.ante, state.roundType) + '）</p>' +
           '<div class="shop-grid">';
         for (var o = 0; o < state.shopOffers.length; o++) {
           var offer = state.shopOffers[o];
+          var rarity = omamoriRarity(offer.id);
           sh +=
-            '<div class="shop-item">' +
+            '<div class="shop-item rarity-' + rarity + '">' +
+            '<img class="shop-omamori-art" src="' + offer.icon + '" alt="" draggable="false" />' +
+            '<div class="shop-item-body">' +
             '<h3>' + offer.name + '</h3>' +
             '<p>' + offer.desc + '</p>' +
-            '<button type="button" class="btn neon-pulse" data-buy="' + o + '">' +
-            offer.price + ' で買う</button></div>';
+            '<button type="button" class="btn neon-pulse neon-sign-btn" data-buy="' + o + '">' +
+            '<span class="price-tag">' +
+            '<img src="assets/ui/coin.svg" alt="" draggable="false" />' +
+            offer.price + '</span> で買う</button></div></div>';
         }
         if (state.shopOffers.length === 0) {
           sh += '<p class="muted">売り切れです。リロールするか次へ進んでください。</p>';
@@ -1290,8 +1530,10 @@ if (typeof document !== 'undefined') {
         sh += '</div>';
         sh +=
           '<div class="shop-actions">' +
-          '<button type="button" class="btn neon-pulse" id="btn-reroll">リロール（' + REROLL_COST + '）</button>' +
-          '<button type="button" class="btn primary neon-pulse" id="btn-leave-shop">夜市を出て次のラウンドへ</button>' +
+          '<button type="button" class="btn neon-pulse neon-sign-btn" id="btn-reroll">リロール（' +
+          '<img class="inline-icon" src="assets/ui/coin.svg" alt="" draggable="false" />' +
+          REROLL_COST + '）</button>' +
+          '<button type="button" class="btn primary neon-pulse neon-sign-btn" id="btn-leave-shop">夜市を出て次のラウンドへ</button>' +
           '</div>';
         shopArea.innerHTML = sh;
         shopArea.classList.remove('shop-exit');
@@ -1299,7 +1541,16 @@ if (typeof document !== 'undefined') {
           shopArea.classList.remove('shop-enter');
           void shopArea.offsetWidth;
           shopArea.classList.add('shop-enter');
-          shopEnterNext = false;
+          phaseTransition('enter');
+        }
+        shopEnterNext = false;
+        if (enteringShop) {
+          requestAnimationFrame(function () {
+            shopArea.scrollIntoView({
+              behavior: reduceMotion() ? 'auto' : 'smooth',
+              block: 'start'
+            });
+          });
         }
       } else {
         handArea.hidden = true;
@@ -1310,6 +1561,16 @@ if (typeof document !== 'undefined') {
         var title = state.phase === 'won' ? '勝利！' : 'ゲームオーバー';
         el('overlay-title').textContent = title;
         el('overlay-msg').textContent = state.message;
+        if (lastPhase !== state.phase && !reduceMotion()) {
+          overlay.classList.remove('overlay-enter');
+          void overlay.offsetWidth;
+          overlay.classList.add('overlay-enter');
+          phaseTransition('enter');
+        }
+      }
+
+      if (lastPhase !== state.phase) {
+        lastPhase = state.phase;
       }
 
       // 得点内訳
@@ -1323,8 +1584,10 @@ if (typeof document !== 'undefined') {
           '<div class="breakdown-main">' +
           '<span class="hand-name">' + ls.hand.name + '</span>' +
           '<span class="' + eqClass + '">' +
-          '<span class="chips-part">' + ls.chips + '</span> × ' +
-          '<span class="mult-part">' + ls.mult + '</span> = <strong>' + ls.score + '</strong></span>' +
+          '<span class="chips-part badge-chip">' +
+          '<img src="assets/ui/chip.svg" alt="" draggable="false" />' + ls.chips + '</span> × ' +
+          '<span class="mult-part badge-mult">' +
+          '<img src="assets/ui/mult.svg" alt="" draggable="false" />' + ls.mult + '</span> = <strong>' + ls.score + '</strong></span>' +
           '</div>' +
           '<div class="breakdown-detail muted">基本チップ ' + ls.hand.chips +
           ' + ランク合計 ' + ls.rankSum;
@@ -1363,15 +1626,16 @@ if (typeof document !== 'undefined') {
         after(40, function () { glowOmamori(glowNames); });
       }
 
-      if (opts.flashBig && !reduceMotion()) {
+      if ((opts.flashBig || opts.handFlash) && !reduceMotion()) {
         var board = el('scoreboard');
         var br = board ? board.getBoundingClientRect() : null;
         var cx = br ? br.left + br.width / 2 : window.innerWidth / 2;
         var cy = br ? br.top + br.height / 2 : window.innerHeight / 3;
-        triggerFlash(true);
-        spawnDomParticles(cx, cy, 14);
-        spawnCanvasBurst(cx, cy);
+        triggerFlash(!!opts.flashBig, opts.handFlash || (state.lastScore && state.lastScore.hand.type));
+        spawnDomParticles(cx, cy, opts.flashBig ? 14 : 8);
+        if (opts.flashBig) spawnCanvasBurst(cx, cy);
       }
+      if (opts.screenShake) triggerScreenShake();
     }
 
     function bind() {

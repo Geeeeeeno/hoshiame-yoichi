@@ -8,9 +8,27 @@
 </head>
 <body>
   <div class="sky" aria-hidden="true">
+    <img class="sky-art" src="assets/bg.svg" alt="" />
     <div class="sky-neon sky-neon-a"></div>
     <div class="sky-neon sky-neon-b"></div>
     <div class="sky-neon sky-neon-c"></div>
+    <div class="sky-sparkles">
+      <span class="sparkle s1"></span>
+      <span class="sparkle s2"></span>
+      <span class="sparkle s3"></span>
+      <span class="sparkle s4"></span>
+      <span class="sparkle s5"></span>
+      <span class="sparkle s6"></span>
+    </div>
+    <div class="sky-lanterns">
+      <span class="lantern-float l1"></span>
+      <span class="lantern-float l2"></span>
+      <span class="lantern-float l3"></span>
+    </div>
+    <div class="sky-stars">
+      <span class="shooting-star ss1"></span>
+      <span class="shooting-star ss2"></span>
+    </div>
   </div>
 
   <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
@@ -18,10 +36,14 @@
 
   <header class="top">
     <div class="brand">
-      <h1 class="neon-sign" data-text="ほしあめ夜市">ほしあめ夜市</h1>
+      <h1 class="neon-sign visually-hidden" data-text="ほしあめ夜市">ほしあめ夜市</h1>
+      <img class="brand-logo" src="assets/logo.svg" alt="ほしあめ夜市" width="460" height="105" />
       <p class="tagline">あめと星のポーカー夜店</p>
     </div>
-    <button type="button" class="btn ghost neon-pulse" id="btn-restart">最初から</button>
+    <div class="top-actions">
+      <div id="audio-controls-slot"></div>
+      <button type="button" class="btn ghost neon-pulse" id="btn-restart">最初から</button>
+    </div>
   </header>
 
   <main class="layout">
@@ -36,7 +58,7 @@
       </div>
       <div class="stat">
         <span class="label">お金</span>
-        <span class="value"><span id="money">0</span></span>
+        <span class="value" id="money">0</span>
       </div>
       <div class="stat">
         <span class="label">出す</span>
@@ -79,8 +101,14 @@
     <section id="shop" class="shop" hidden aria-label="ショップ"></section>
 
     <section id="actions" class="actions">
-      <button type="button" class="btn primary neon-pulse" id="btn-play">役を出す</button>
-      <button type="button" class="btn neon-pulse" id="btn-discard">捨てる</button>
+      <button type="button" class="btn primary neon-pulse" id="btn-play">
+        <img class="btn-icon" src="assets/ui/play.svg" alt="" draggable="false" />
+        役を出す
+      </button>
+      <button type="button" class="btn neon-pulse" id="btn-discard">
+        <img class="btn-icon" src="assets/ui/discard.svg" alt="" draggable="false" />
+        捨てる
+      </button>
     </section>
 
     <details class="howto">
@@ -91,7 +119,12 @@
         <p>各ラウンドには目標スコアがあり、出す回数（4）と捨てる回数（3）の制限内に到達すればクリア。届かなければゲームオーバーです。</p>
         <p>1アンテは小・大・ボスの3ラウンド。アンテが上がるほど目標も上がります。アンテ8のボスまでクリアすると勝利です。</p>
         <p>クリア後はお金をもらい、夜市ショップでおまもりを買えます（所持上限5・売却可・リロール有料）。</p>
-        <p>スートは <strong>飴🍬・星⭐・鈴🔔・月🌙</strong>、ランクは 2〜A です。</p>
+        <p>スートは
+          <span class="suit-chip"><img src="assets/suit-ame.svg" alt="" />飴</span>
+          <span class="suit-chip"><img src="assets/suit-hoshi.svg" alt="" />星</span>
+          <span class="suit-chip"><img src="assets/suit-suzu.svg" alt="" />鈴</span>
+          <span class="suit-chip"><img src="assets/suit-tsuki.svg" alt="" />月</span>
+          、ランクは 2〜A です。</p>
         <h3>役一覧（基本チップ × 倍率）</h3>
         <ul>
           <li>ハイカード … 5 × 1</li>
@@ -122,6 +155,7 @@
     </div>
   </div>
 
+  <script src="audio.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
