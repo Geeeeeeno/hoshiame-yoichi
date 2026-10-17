@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ほしあめ夜市</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="sky" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <h1>ほしあめ夜市</h1>
+      <p class="tagline">あめと星のポーカー夜店</p>
+    </div>
+    <button type="button" class="btn ghost" id="btn-restart">最初から</button>
+  </header>
+
+  <main class="layout">
+    <section class="hud" aria-label="状況">
+      <div class="stat">
+        <span class="label">アンテ</span>
+        <span class="value"><span id="ante">1</span> / 8</span>
+      </div>
+      <div class="stat">
+        <span class="label">ラウンド</span>
+        <span class="value" id="round-type">小ラウンド</span>
+      </div>
+      <div class="stat">
+        <span class="label">お金</span>
+        <span class="value"><span id="money">0</span></span>
+      </div>
+      <div class="stat">
+        <span class="label">出す</span>
+        <span class="value" id="plays">4</span>
+      </div>
+      <div class="stat">
+        <span class="label">捨てる</span>
+        <span class="value" id="discards">3</span>
+      </div>
+    </section>
+
+    <section class="scoreboard" aria-label="得点">
+      <div class="score-row">
+        <span>得点 <strong id="score">0</strong></span>
+        <span class="sep">/</span>
+        <span>目標 <strong id="target">100</strong></span>
+      </div>
+      <div class="bar-track" aria-hidden="true">
+        <div class="bar-fill" id="score-bar"></div>
+      </div>
+      <div id="breakdown" class="breakdown"></div>
+      <p id="preview" class="preview"></p>
+      <p id="status-msg" class="status-msg" role="status"></p>
+    </section>
+
+    <section class="omamori-panel" aria-label="おまもり">
+      <h2>おまもり <span class="muted">（最大5）</span></h2>
+      <div id="omamori-list" class="omamori-list"></div>
+    </section>
+
+    <section id="hand" class="hand" aria-label="手札"></section>
+
+    <section id="shop" class="shop" hidden aria-label="ショップ"></section>
+
+    <section id="actions" class="actions">
+      <button type="button" class="btn primary" id="btn-play">役を出す</button>
+      <button type="button" class="btn" id="btn-discard">捨てる</button>
+    </section>
+
+    <details class="howto">
+      <summary>遊び方</summary>
+      <div class="howto-body">
+        <p>52枚の山札から手札8枚が配られます。最大5枚まで選んで<strong>役を出す</strong>か、いらないカードを<strong>捨てる</strong>ことができます。</p>
+        <p>得点は <code>(役の基本チップ + 役を構成するカードのランク値) × 倍率</code> です。おまもりがあるとチップや倍率がさらに増えます。</p>
+        <p>各ラウンドには目標スコアがあり、出す回数（4）と捨てる回数（3）の制限内に到達すればクリア。届かなければゲームオーバーです。</p>
+        <p>1アンテは小・大・ボスの3ラウンド。アンテが上がるほど目標も上がります。アンテ8のボスまでクリアすると勝利です。</p>
+        <p>クリア後はお金をもらい、夜市ショップでおまもりを買えます（所持上限5・売却可・リロール有料）。</p>
+        <p>スートは <strong>飴🍬・星⭐・鈴🔔・月🌙</strong>、ランクは 2〜A です。</p>
+        <h3>役一覧（基本チップ × 倍率）</h3>
+        <ul>
+          <li>ハイカード … 5 × 1</li>
+          <li>ワンペア … 10 × 2</li>
+          <li>ツーペア … 20 × 2</li>
+          <li>スリーカード … 30 × 3</li>
+          <li>ストレート … 30 × 4</li>
+          <li>フラッシュ … 35 × 4</li>
+          <li>フルハウス … 40 × 4</li>
+          <li>フォーカード … 60 × 7</li>
+          <li>ストレートフラッシュ … 100 × 8</li>
+        </ul>
+      </div>
+    </details>
+  </main>
+
+  <div id="overlay" class="overlay" hidden>
+    <div class="overlay-card">
+      <h2 id="overlay-title">結果</h2>
+      <p id="overlay-msg"></p>
+      <button type="button" class="btn primary" id="btn-restart-overlay">もう一度遊ぶ</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
