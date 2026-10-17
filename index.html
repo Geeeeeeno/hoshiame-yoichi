@@ -7,14 +7,21 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="sky" aria-hidden="true"></div>
+  <div class="sky" aria-hidden="true">
+    <div class="sky-neon sky-neon-a"></div>
+    <div class="sky-neon sky-neon-b"></div>
+    <div class="sky-neon sky-neon-c"></div>
+  </div>
+
+  <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+  <canvas id="fx-canvas" class="fx-canvas" aria-hidden="true"></canvas>
 
   <header class="top">
     <div class="brand">
-      <h1>ほしあめ夜市</h1>
+      <h1 class="neon-sign" data-text="ほしあめ夜市">ほしあめ夜市</h1>
       <p class="tagline">あめと星のポーカー夜店</p>
     </div>
-    <button type="button" class="btn ghost" id="btn-restart">最初から</button>
+    <button type="button" class="btn ghost neon-pulse" id="btn-restart">最初から</button>
   </header>
 
   <main class="layout">
@@ -41,7 +48,7 @@
       </div>
     </section>
 
-    <section class="scoreboard" aria-label="得点">
+    <section class="scoreboard" aria-label="得点" id="scoreboard">
       <div class="score-row">
         <span>得点 <strong id="score">0</strong></span>
         <span class="sep">/</span>
@@ -60,13 +67,20 @@
       <div id="omamori-list" class="omamori-list"></div>
     </section>
 
-    <section id="hand" class="hand" aria-label="手札"></section>
+    <div class="table-area">
+      <div id="deck-pile" class="deck-pile" aria-hidden="true">
+        <div class="deck-card"></div>
+        <div class="deck-card"></div>
+        <div class="deck-card"></div>
+      </div>
+      <section id="hand" class="hand" aria-label="手札"></section>
+    </div>
 
     <section id="shop" class="shop" hidden aria-label="ショップ"></section>
 
     <section id="actions" class="actions">
-      <button type="button" class="btn primary" id="btn-play">役を出す</button>
-      <button type="button" class="btn" id="btn-discard">捨てる</button>
+      <button type="button" class="btn primary neon-pulse" id="btn-play">役を出す</button>
+      <button type="button" class="btn neon-pulse" id="btn-discard">捨てる</button>
     </section>
 
     <details class="howto">
@@ -94,11 +108,17 @@
     </details>
   </main>
 
+  <div id="round-banner" class="round-banner" hidden aria-hidden="true">
+    <div class="round-banner-inner">
+      <span class="round-banner-label" id="round-banner-text">ラウンドクリア！</span>
+    </div>
+  </div>
+
   <div id="overlay" class="overlay" hidden>
     <div class="overlay-card">
       <h2 id="overlay-title">結果</h2>
       <p id="overlay-msg"></p>
-      <button type="button" class="btn primary" id="btn-restart-overlay">もう一度遊ぶ</button>
+      <button type="button" class="btn primary neon-pulse" id="btn-restart-overlay">もう一度遊ぶ</button>
     </div>
   </div>
 

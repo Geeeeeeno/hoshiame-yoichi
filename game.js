@@ -538,6 +538,14 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof document !== 'undefined') {
   (function () {
     var state = null;
+    var animBusy = false;
+    var knownHandIds = {};
+    var displayedScore = 0;
+    var scoreAnimToken = 0;
+    var dealAllNext = false;
+    var shopEnterNext = false;
+    var pendingOmamoriGlow = [];
+    var BIG_SCORE = 80;
 
     function freshState() {
       return {
@@ -560,8 +568,22 @@ if (typeof document !== 'undefined') {
       };
     }
 
-    function startRound() {
+    function reduceMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function after(ms, fn) {
+      if (reduceMotion()) {
+        fn();
+        return;
+      }
+      setTimeout(fn, ms);
+    }
+
+    function startRound(opts) {
+      opts = opts || {};
       state.score = 0;
+      displayedScore = 0;
       state.target = getTargetScore(state.ante, state.roundType);
       state.playsLeft = START_PLAYS;
       state.discardsLeft = START_DISCARDS;
@@ -571,6 +593,8 @@ if (typeof document !== 'undefined') {
       state.lastScore = null;
       state.message = '';
       state.phase = 'play';
+      knownHandIds = {};
+      dealAllNext = opts.deal !== false;
       drawToHand();
     }
 
@@ -597,34 +621,35 @@ if (typeof document !== 'undefined') {
       state.selected = {};
     }
 
+    function setActionsEnabled(on) {
+      var playBtn = el('btn-play');
+      var discardBtn = el('btn-discard');
+      if (playBtn) playBtn.disabled = !on || !state || state.playsLeft <= 0 || state.phase !== 'play';
+      if (discardBtn) discardBtn.disabled = !on || !state || state.discardsLeft <= 0 || state.phase !== 'play';
+    }
+
     function toggleSelect(cardId) {
-      if (state.phase !== 'play') return;
+      if (state.phase !== 'play' || animBusy) return;
       if (state.selected[cardId]) {
         delete state.selected[cardId];
       } else {
         var n = Object.keys(state.selected).length;
         if (n >= MAX_SELECT) {
           state.message = '選べるのは最大' + MAX_SELECT + '枚です';
-          render();
+          render({ skipDeal: true });
           return;
         }
         state.selected[cardId] = true;
       }
       state.message = '';
-      render();
+      render({ skipDeal: true });
     }
 
-    function playHand() {
-      if (state.phase !== 'play' || state.playsLeft <= 0) return;
-      var cards = selectedCards();
-      if (cards.length === 0) {
-        state.message = 'カードを選んでください';
-        render();
-        return;
-      }
-      if (cards.length > MAX_SELECT) return;
-
-      var result = calculateScore(cards, state.omamori);
+    /**
+     * 得点反映・手札更新。クリア処理は呼び出し側で行う（演出タイミング用）。
+     * @returns {'clear'|'lost'|'continue'}
+     */
+    function applyPlayResult(result) {
       state.score += result.score;
       state.playsLeft -= 1;
       state.lastScore = result;
@@ -632,30 +657,115 @@ if (typeof document !== 'undefined') {
       drawToHand();
 
       if (state.score >= state.target) {
-        onRoundClear();
-      } else if (state.playsLeft <= 0) {
+        state.message = result.hand.name + 'で ' + result.score + ' 点！ クリア！';
+        return 'clear';
+      }
+      if (state.playsLeft <= 0) {
         state.phase = 'lost';
         state.message = '目標に届きませんでした…ゲームオーバー';
-      } else {
-        state.message = result.hand.name + 'で ' + result.score + ' 点！';
+        return 'lost';
       }
-      render();
+      state.message = result.hand.name + 'で ' + result.score + ' 点！';
+      return 'continue';
+    }
+
+    function playHand() {
+      if (state.phase !== 'play' || state.playsLeft <= 0 || animBusy) return;
+      var cards = selectedCards();
+      if (cards.length === 0) {
+        state.message = 'カードを選んでください';
+        render({ skipDeal: true });
+        return;
+      }
+      if (cards.length > MAX_SELECT) return;
+
+      var result = calculateScore(cards, state.omamori);
+      var scoreBefore = state.score;
+      var selectedIds = cards.map(function (c) { return c.id; });
+      var bigHit = result.score >= BIG_SCORE ||
+        result.hand.type === 'four' ||
+        result.hand.type === 'straight_flush' ||
+        result.hand.type === 'full_house';
+
+      pendingOmamoriGlow = [];
+      if (result.omamoriBreakdown && result.omamoriBreakdown.length) {
+        for (var i = 0; i < result.omamoriBreakdown.length; i++) {
+          pendingOmamoriGlow.push(result.omamoriBreakdown[i].name);
+        }
+      }
+
+      if (reduceMotion()) {
+        var quick = applyPlayResult(result);
+        if (quick === 'clear') onRoundClear();
+        displayedScore = state.score;
+        if (state.phase === 'shop') shopEnterNext = true;
+        render({ skipDeal: true, popEq: true, shakeEq: bigHit });
+        return;
+      }
+
+      animBusy = true;
+      setActionsEnabled(false);
+      flyCardsToScore(selectedIds, function () {
+        var outcome = applyPlayResult(result);
+        render({
+          dealNew: true,
+          popEq: true,
+          shakeEq: bigHit || outcome === 'clear',
+          scoreFrom: scoreBefore,
+          flashBig: bigHit || outcome === 'clear'
+        });
+        after(bigHit || outcome === 'clear' ? 850 : 600, function () {
+          if (outcome === 'clear') {
+            onRoundClear();
+            var bannerText = state.phase === 'won' ? '夜市優勝！' : 'ラウンドクリア！';
+            showRoundBanner(bannerText, function () {
+              animBusy = false;
+              if (state.phase === 'shop') shopEnterNext = true;
+              render({ skipDeal: true });
+            });
+          } else if (outcome === 'lost') {
+            animBusy = false;
+            render({ skipDeal: true });
+          } else {
+            animBusy = false;
+            setActionsEnabled(true);
+          }
+        });
+      });
     }
 
     function discardHand() {
-      if (state.phase !== 'play' || state.discardsLeft <= 0) return;
+      if (state.phase !== 'play' || state.discardsLeft <= 0 || animBusy) return;
       var cards = selectedCards();
       if (cards.length === 0) {
         state.message = '捨てるカードを選んでください';
-        render();
+        render({ skipDeal: true });
         return;
       }
-      state.discardsLeft -= 1;
-      removeSelectedFromHand();
-      drawToHand();
-      state.lastScore = null;
-      state.message = 'カードを捨てました（残り捨て回数 ' + state.discardsLeft + '）';
-      render();
+
+      var selectedIds = cards.map(function (c) { return c.id; });
+
+      function finishDiscard() {
+        state.discardsLeft -= 1;
+        removeSelectedFromHand();
+        drawToHand();
+        state.lastScore = null;
+        state.message = 'カードを捨てました（残り捨て回数 ' + state.discardsLeft + '）';
+        render({ dealNew: true });
+        animBusy = false;
+        setActionsEnabled(true);
+      }
+
+      if (reduceMotion()) {
+        finishDiscard();
+        return;
+      }
+
+      animBusy = true;
+      setActionsEnabled(false);
+      flyCardsDiscard(selectedIds, function () {
+        after(80, finishDiscard);
+      });
     }
 
     function onRoundClear() {
@@ -680,75 +790,376 @@ if (typeof document !== 'undefined') {
     }
 
     function buyOmamori(offerIndex) {
-      if (state.phase !== 'shop') return;
+      if (state.phase !== 'shop' || animBusy) return;
       var offer = state.shopOffers[offerIndex];
       if (!offer) return;
       if (state.omamori.length >= MAX_OMAMORI) {
         state.message = 'おまもりは最大' + MAX_OMAMORI + '個までです。売却してから買ってください';
-        render();
+        render({ skipDeal: true });
         return;
       }
       if (state.money < offer.price) {
         state.message = 'お金が足りません';
-        render();
+        render({ skipDeal: true });
         return;
       }
       state.money -= offer.price;
       state.omamori.push(offer.id);
       state.shopOffers.splice(offerIndex, 1);
       state.message = offer.name + 'を買いました';
-      render();
+      pendingOmamoriGlow = [offer.name];
+      render({ skipDeal: true });
     }
 
     function sellOmamori(ownedIndex) {
-      if (state.phase !== 'shop') return;
+      if (state.phase !== 'shop' || animBusy) return;
       var id = state.omamori[ownedIndex];
       if (!id) return;
       var price = sellPrice(id);
       state.omamori.splice(ownedIndex, 1);
       state.money += price;
       state.message = (getOmamoriDef(id).name) + 'を' + price + 'で売却';
-      render();
+      render({ skipDeal: true });
     }
 
     function rerollShop() {
-      if (state.phase !== 'shop') return;
+      if (state.phase !== 'shop' || animBusy) return;
       if (state.money < REROLL_COST) {
         state.message = 'リロールには' + REROLL_COST + '必要です';
-        render();
+        render({ skipDeal: true });
         return;
       }
       state.money -= REROLL_COST;
       state.shopOffers = pickShopOffers(state.omamori);
       state.message = '商品を入れ替えました（-' + REROLL_COST + '）';
-      render();
+      shopEnterNext = true;
+      render({ skipDeal: true });
     }
 
     function leaveShop() {
-      if (state.phase !== 'shop') return;
-      startRound();
+      if (state.phase !== 'shop' || animBusy) return;
+      var shopArea = el('shop');
+      if (!reduceMotion() && shopArea && !shopArea.hidden) {
+        animBusy = true;
+        shopArea.classList.remove('shop-enter');
+        shopArea.classList.add('shop-exit');
+        after(280, function () {
+          shopArea.classList.remove('shop-exit');
+          startRound({ deal: true });
+          animBusy = false;
+          render();
+        });
+        return;
+      }
+      startRound({ deal: true });
       render();
     }
 
     function restart() {
+      animBusy = false;
+      knownHandIds = {};
+      displayedScore = 0;
+      pendingOmamoriGlow = [];
+      hideRoundBanner();
+      clearFx();
       state = freshState();
-      startRound();
+      startRound({ deal: true });
       render();
     }
 
-    // ---- DOM ----
+    // ---- 演出ヘルパー ----
 
     function el(id) {
       return document.getElementById(id);
     }
 
-    function renderCard(card, selectable) {
+    function clearFx() {
+      var layer = el('fx-layer');
+      if (layer) layer.innerHTML = '';
+      var canvas = el('fx-canvas');
+      if (canvas) {
+        var ctx = canvas.getContext && canvas.getContext('2d');
+        if (ctx) {
+          canvas.width = canvas.clientWidth || 1;
+          canvas.height = canvas.clientHeight || 1;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+    }
+
+    function getDeckOrigin() {
+      var deck = el('deck-pile');
+      if (!deck) return { x: 40, y: 120 };
+      var r = deck.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    function flyCardsToScore(cardIds, done) {
+      var handArea = el('hand');
+      var target = el('scoreboard') || el('breakdown');
+      var layer = el('fx-layer');
+      if (!handArea || !target || !layer || reduceMotion()) {
+        done();
+        return;
+      }
+      var tRect = target.getBoundingClientRect();
+      var tx = tRect.left + tRect.width * 0.55;
+      var ty = tRect.top + tRect.height * 0.45;
+      var count = 0;
+      var total = 0;
+
+      for (var i = 0; i < cardIds.length; i++) {
+        var btn = handArea.querySelector('[data-card="' + cardIds[i] + '"]');
+        if (!btn) continue;
+        total++;
+        (function (src, delay) {
+          var rect = src.getBoundingClientRect();
+          src.classList.add('playing-out');
+          var ghost = src.cloneNode(true);
+          ghost.className = 'card fly-ghost';
+          ghost.style.left = rect.left + 'px';
+          ghost.style.top = rect.top + 'px';
+          ghost.style.width = rect.width + 'px';
+          ghost.style.height = rect.height + 'px';
+          layer.appendChild(ghost);
+          setTimeout(function () {
+            ghost.style.left = (tx - rect.width * 0.2) + 'px';
+            ghost.style.top = (ty - rect.height * 0.2) + 'px';
+            ghost.classList.add('fly-to-score');
+          }, delay);
+          setTimeout(function () {
+            if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+            count++;
+            if (count >= total) done();
+          }, delay + 480);
+        })(btn, i * 55);
+      }
+
+      if (total === 0) done();
+    }
+
+    function flyCardsDiscard(cardIds, done) {
+      var handArea = el('hand');
+      var layer = el('fx-layer');
+      if (!handArea || !layer || reduceMotion()) {
+        done();
+        return;
+      }
+      var count = 0;
+      var total = 0;
+      for (var i = 0; i < cardIds.length; i++) {
+        var btn = handArea.querySelector('[data-card="' + cardIds[i] + '"]');
+        if (!btn) continue;
+        total++;
+        (function (src, delay) {
+          var rect = src.getBoundingClientRect();
+          src.classList.add('playing-out');
+          var ghost = src.cloneNode(true);
+          ghost.className = 'card fly-ghost';
+          ghost.style.left = rect.left + 'px';
+          ghost.style.top = rect.top + 'px';
+          ghost.style.width = rect.width + 'px';
+          ghost.style.height = rect.height + 'px';
+          layer.appendChild(ghost);
+          setTimeout(function () {
+            ghost.style.top = (rect.top + 60) + 'px';
+            ghost.classList.add('discard-out');
+          }, delay);
+          setTimeout(function () {
+            if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+            count++;
+            if (count >= total) done();
+          }, delay + 380);
+        })(btn, i * 40);
+      }
+      if (total === 0) done();
+    }
+
+    function spawnDomParticles(cx, cy, amount) {
+      var layer = el('fx-layer');
+      if (!layer || reduceMotion()) return;
+      var colors = ['#ff2d95', '#2de2e6', '#b967ff', '#ffe566', '#39ffb6'];
+      var n = Math.min(amount || 14, 16);
+      for (var i = 0; i < n; i++) {
+        var p = document.createElement('span');
+        p.className = 'fx-particle';
+        var angle = (Math.PI * 2 * i) / n + Math.random() * 0.4;
+        var dist = 48 + Math.random() * 70;
+        p.style.left = cx + 'px';
+        p.style.top = cy + 'px';
+        p.style.color = colors[i % colors.length];
+        p.style.background = colors[i % colors.length];
+        p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+        p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+        layer.appendChild(p);
+        (function (node) {
+          setTimeout(function () {
+            if (node.parentNode) node.parentNode.removeChild(node);
+          }, 750);
+        })(p);
+      }
+    }
+
+    function spawnCanvasBurst(cx, cy) {
+      var canvas = el('fx-canvas');
+      if (!canvas || reduceMotion() || !canvas.getContext) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var dots = [];
+      var colors = ['#ff2d95', '#2de2e6', '#ffe566', '#b967ff'];
+      for (var i = 0; i < 12; i++) {
+        var ang = Math.random() * Math.PI * 2;
+        var spd = 2 + Math.random() * 4;
+        dots.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 1,
+          life: 1,
+          color: colors[i % colors.length]
+        });
+      }
+      var frames = 0;
+      function tick() {
+        frames++;
+        ctx.clearRect(0, 0, w, h);
+        for (var j = 0; j < dots.length; j++) {
+          var d = dots[j];
+          d.x += d.vx;
+          d.y += d.vy;
+          d.vy += 0.12;
+          d.life -= 0.04;
+          if (d.life <= 0) continue;
+          ctx.globalAlpha = Math.max(0, d.life);
+          ctx.fillStyle = d.color;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (frames < 28) {
+          requestAnimationFrame(tick);
+        } else {
+          ctx.clearRect(0, 0, w, h);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function triggerFlash(big) {
+      var layer = el('fx-layer');
+      if (!layer || reduceMotion()) return;
+      var flash = document.createElement('div');
+      flash.className = 'fx-flash';
+      if (!big) flash.style.opacity = '0.5';
+      layer.appendChild(flash);
+      setTimeout(function () {
+        if (flash.parentNode) flash.parentNode.removeChild(flash);
+      }, 560);
+    }
+
+    function animateScoreCount(from, to) {
+      var scoreEl = el('score');
+      if (!scoreEl) return;
+      scoreAnimToken++;
+      var token = scoreAnimToken;
+      if (reduceMotion() || from === to) {
+        displayedScore = to;
+        scoreEl.textContent = to;
+        return;
+      }
+      var start = performance.now();
+      var dur = Math.min(700, 280 + Math.abs(to - from) * 2);
+      function step(now) {
+        if (token !== scoreAnimToken) return;
+        var t = Math.min(1, (now - start) / dur);
+        var eased = 1 - Math.pow(1 - t, 3);
+        var val = Math.round(from + (to - from) * eased);
+        displayedScore = val;
+        scoreEl.textContent = val;
+        scoreEl.classList.add('counting');
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          scoreEl.classList.remove('counting');
+          displayedScore = to;
+          scoreEl.textContent = to;
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function showRoundBanner(text, done) {
+      var banner = el('round-banner');
+      var label = el('round-banner-text');
+      if (!banner || reduceMotion()) {
+        if (done) done();
+        return;
+      }
+      if (label) label.textContent = text;
+      banner.hidden = false;
+      banner.setAttribute('aria-hidden', 'false');
+      var board = el('scoreboard');
+      var rect = board ? board.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
+      var cx = rect.left + rect.width / 2;
+      var cy = rect.top + rect.height / 2;
+      triggerFlash(true);
+      spawnDomParticles(cx, cy, 16);
+      spawnCanvasBurst(cx, cy);
+      after(1100, function () {
+        hideRoundBanner();
+        if (done) done();
+      });
+    }
+
+    function hideRoundBanner() {
+      var banner = el('round-banner');
+      if (banner) {
+        banner.hidden = true;
+        banner.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function glowOmamori(names) {
+      if (!names || !names.length || reduceMotion()) return;
+      var chips = el('omamori-list').querySelectorAll('.omamori-chip');
+      for (var i = 0; i < chips.length; i++) {
+        var strong = chips[i].querySelector('strong');
+        if (!strong) continue;
+        for (var n = 0; n < names.length; n++) {
+          if (strong.textContent === names[n]) {
+            chips[i].classList.add('omamori-glow');
+            (function (node) {
+              setTimeout(function () { node.classList.remove('omamori-glow'); }, 900);
+            })(chips[i]);
+          }
+        }
+      }
+    }
+
+    // ---- DOM 描画 ----
+
+    function renderCard(card, selectable, dealClass, delayMs, dealX, dealY) {
       var s = suitInfo(card.suit);
       var selected = !!state.selected[card.id];
-      var cls = 'card' + (selected ? ' selected' : '') + (selectable ? ' selectable' : '');
+      var cls = 'card' +
+        (selected ? ' selected' : '') +
+        (selectable ? ' selectable' : '') +
+        (dealClass ? ' ' + dealClass : '');
+      var style = '--suit:' + s.color;
+      if (dealClass) {
+        style += ';--deal-x:' + (dealX || -80) + 'px;--deal-y:' + (dealY || -40) + 'px';
+        style += ';animation-delay:' + (delayMs || 0) + 'ms';
+      }
       return (
         '<button type="button" class="' + cls + '" data-card="' + card.id + '"' +
-        ' style="--suit:' + s.color + '" aria-pressed="' + selected + '">' +
+        ' style="' + style + '" aria-pressed="' + selected + '">' +
         '<span class="card-rank">' + RANK_LABELS[card.rank] + '</span>' +
         '<span class="card-suit">' + s.emoji + '</span>' +
         '<span class="card-suit-name">' + s.name + '</span>' +
@@ -756,19 +1167,35 @@ if (typeof document !== 'undefined') {
       );
     }
 
-    function render() {
+    function render(opts) {
       if (!state) return;
+      opts = opts || {};
 
       el('ante').textContent = state.ante;
       el('round-type').textContent = roundTypeName(state.roundType);
       el('money').textContent = state.money;
-      el('score').textContent = state.score;
       el('target').textContent = state.target;
       el('plays').textContent = state.playsLeft;
       el('discards').textContent = state.discardsLeft;
 
-      var progress = Math.min(100, Math.floor((state.score / state.target) * 100));
+      if (typeof opts.scoreFrom === 'number' && !reduceMotion()) {
+        animateScoreCount(opts.scoreFrom, state.score);
+      } else {
+        displayedScore = state.score;
+        el('score').textContent = state.score;
+      }
+
+      var progress = Math.min(100, Math.floor((state.score / state.target) * 100) || 0);
       el('score-bar').style.width = progress + '%';
+
+      var scoreboard = el('scoreboard');
+      if (scoreboard) {
+        scoreboard.classList.remove('score-hit');
+        if (opts.popEq) {
+          void scoreboard.offsetWidth;
+          scoreboard.classList.add('score-hit');
+        }
+      }
 
       // おまもり所持
       var omaHtml = '';
@@ -778,7 +1205,7 @@ if (typeof document !== 'undefined') {
         for (var i = 0; i < state.omamori.length; i++) {
           var d = getOmamoriDef(state.omamori[i]);
           omaHtml +=
-            '<div class="omamori-chip" title="' + d.desc + '">' +
+            '<div class="omamori-chip" data-omamori-name="' + d.name + '" title="' + d.desc + '">' +
             '<strong>' + d.name + '</strong><span>' + d.desc + '</span>';
           if (state.phase === 'shop') {
             omaHtml +=
@@ -790,31 +1217,58 @@ if (typeof document !== 'undefined') {
       }
       el('omamori-list').innerHTML = omaHtml;
 
-      // 手札
       var handArea = el('hand');
       var shopArea = el('shop');
       var actions = el('actions');
       var overlay = el('overlay');
+      var deckPile = el('deck-pile');
 
       if (state.phase === 'play') {
         handArea.hidden = false;
         shopArea.hidden = true;
+        shopArea.classList.remove('shop-enter', 'shop-exit');
         actions.hidden = false;
         overlay.hidden = true;
+        if (deckPile) deckPile.style.visibility = 'visible';
 
+        var origin = getDeckOrigin();
+        var doDeal = !opts.skipDeal && (dealAllNext || opts.dealNew) && !reduceMotion();
         var h = '';
+        var newIds = {};
         for (var c = 0; c < state.hand.length; c++) {
-          h += renderCard(state.hand[c], true);
+          var card = state.hand[c];
+          newIds[card.id] = true;
+          var isNew = doDeal && (dealAllNext || !knownHandIds[card.id]);
+          var dealClass = '';
+          var delay = 0;
+          var dx = 0;
+          var dy = 0;
+          if (isNew) {
+            dealClass = dealAllNext ? 'flipping' : 'dealing';
+            delay = c * 55;
+            var handRect = handArea.getBoundingClientRect();
+            var approxLeft = handRect.left + (c % 8) * 72 + 30;
+            var approxTop = handRect.top + 40;
+            dx = origin.x - approxLeft;
+            dy = origin.y - approxTop;
+          }
+          h += renderCard(card, true, dealClass, delay, dx, dy);
         }
         handArea.innerHTML = h || '<p class="muted">手札がありません</p>';
+        knownHandIds = newIds;
+        dealAllNext = false;
 
-        el('btn-play').disabled = state.playsLeft <= 0;
-        el('btn-discard').disabled = state.discardsLeft <= 0;
+        if (!animBusy) {
+          el('btn-play').disabled = state.playsLeft <= 0;
+          el('btn-discard').disabled = state.discardsLeft <= 0;
+        }
       } else if (state.phase === 'shop') {
         handArea.hidden = true;
         shopArea.hidden = false;
         actions.hidden = true;
         overlay.hidden = true;
+        if (deckPile) deckPile.style.visibility = 'hidden';
+        knownHandIds = {};
 
         var sh =
           '<p class="shop-intro">次は アンテ' + state.ante + '・' +
@@ -827,7 +1281,7 @@ if (typeof document !== 'undefined') {
             '<div class="shop-item">' +
             '<h3>' + offer.name + '</h3>' +
             '<p>' + offer.desc + '</p>' +
-            '<button type="button" class="btn" data-buy="' + o + '">' +
+            '<button type="button" class="btn neon-pulse" data-buy="' + o + '">' +
             offer.price + ' で買う</button></div>';
         }
         if (state.shopOffers.length === 0) {
@@ -836,15 +1290,23 @@ if (typeof document !== 'undefined') {
         sh += '</div>';
         sh +=
           '<div class="shop-actions">' +
-          '<button type="button" class="btn" id="btn-reroll">リロール（' + REROLL_COST + '）</button>' +
-          '<button type="button" class="btn primary" id="btn-leave-shop">夜市を出て次のラウンドへ</button>' +
+          '<button type="button" class="btn neon-pulse" id="btn-reroll">リロール（' + REROLL_COST + '）</button>' +
+          '<button type="button" class="btn primary neon-pulse" id="btn-leave-shop">夜市を出て次のラウンドへ</button>' +
           '</div>';
         shopArea.innerHTML = sh;
+        shopArea.classList.remove('shop-exit');
+        if (shopEnterNext && !reduceMotion()) {
+          shopArea.classList.remove('shop-enter');
+          void shopArea.offsetWidth;
+          shopArea.classList.add('shop-enter');
+          shopEnterNext = false;
+        }
       } else {
         handArea.hidden = true;
         shopArea.hidden = true;
         actions.hidden = true;
         overlay.hidden = false;
+        if (deckPile) deckPile.style.visibility = 'hidden';
         var title = state.phase === 'won' ? '勝利！' : 'ゲームオーバー';
         el('overlay-title').textContent = title;
         el('overlay-msg').textContent = state.message;
@@ -854,10 +1316,15 @@ if (typeof document !== 'undefined') {
       var breakdown = el('breakdown');
       if (state.lastScore) {
         var ls = state.lastScore;
+        var eqClass = 'eq';
+        if (opts.popEq) eqClass += ' pop';
+        if (opts.shakeEq) eqClass += ' shake';
         var lines =
           '<div class="breakdown-main">' +
           '<span class="hand-name">' + ls.hand.name + '</span>' +
-          '<span class="eq">' + ls.chips + ' × ' + ls.mult + ' = <strong>' + ls.score + '</strong></span>' +
+          '<span class="' + eqClass + '">' +
+          '<span class="chips-part">' + ls.chips + '</span> × ' +
+          '<span class="mult-part">' + ls.mult + '</span> = <strong>' + ls.score + '</strong></span>' +
           '</div>' +
           '<div class="breakdown-detail muted">基本チップ ' + ls.hand.chips +
           ' + ランク合計 ' + ls.rankSum;
@@ -872,9 +1339,14 @@ if (typeof document !== 'undefined') {
         breakdown.innerHTML = '<p class="muted">カードを選んで「役を出す」か「捨てる」</p>';
       }
 
-      el('status-msg').textContent = state.message || '';
+      var status = el('status-msg');
+      status.textContent = state.message || '';
+      status.classList.remove('pulse-in');
+      if (state.message) {
+        void status.offsetWidth;
+        status.classList.add('pulse-in');
+      }
 
-      // プレビュー
       var sel = selectedCards();
       var preview = el('preview');
       if (state.phase === 'play' && sel.length > 0) {
@@ -884,12 +1356,28 @@ if (typeof document !== 'undefined') {
       } else {
         preview.textContent = '';
       }
+
+      if (pendingOmamoriGlow.length) {
+        var glowNames = pendingOmamoriGlow.slice();
+        pendingOmamoriGlow = [];
+        after(40, function () { glowOmamori(glowNames); });
+      }
+
+      if (opts.flashBig && !reduceMotion()) {
+        var board = el('scoreboard');
+        var br = board ? board.getBoundingClientRect() : null;
+        var cx = br ? br.left + br.width / 2 : window.innerWidth / 2;
+        var cy = br ? br.top + br.height / 2 : window.innerHeight / 3;
+        triggerFlash(true);
+        spawnDomParticles(cx, cy, 14);
+        spawnCanvasBurst(cx, cy);
+      }
     }
 
     function bind() {
       el('hand').addEventListener('click', function (e) {
         var btn = e.target.closest('[data-card]');
-        if (!btn) return;
+        if (!btn || animBusy) return;
         toggleSelect(btn.getAttribute('data-card'));
       });
 
