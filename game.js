@@ -636,6 +636,8 @@ if (typeof document !== 'undefined') {
   (function () {
     var state = null;
     var animBusy = false;
+    // 演出中の「最初から」で、遅れて戻るコールバックが新しい対局を書き換えないようにする
+    var actionGen = 0;
     var knownHandIds = {};
     var displayedScore = 0;
     var scoreAnimToken = 0;
@@ -859,7 +861,9 @@ if (typeof document !== 'undefined') {
 
       animBusy = true;
       setActionsEnabled(false);
+      var gen = actionGen;
       flyCardsToScore(selectedIds, function () {
+        if (gen !== actionGen) return;
         var outcome = applyPlayResult(result);
         playScoreSfx(result, bigHit, outcome);
         render({
@@ -872,18 +876,23 @@ if (typeof document !== 'undefined') {
           screenShake: bigHit || outcome === 'clear'
         });
         after(bigHit || outcome === 'clear' ? 850 : 600, function () {
+          if (gen !== actionGen) return;
           if (outcome === 'clear') {
             onRoundClear();
             var bannerText = state.phase === 'won' ? '夜市優勝！' : 'ラウンドクリア！';
             sfx('roundClear');
             showRoundBanner(bannerText, function () {
+              if (gen !== actionGen) return;
               animBusy = false;
               if (state.phase === 'shop') shopEnterNext = true;
               render({ skipDeal: true });
             });
           } else if (outcome === 'lost') {
             sfx('fail');
-            after(200, function () { sfx('gameOver'); });
+            after(200, function () {
+              if (gen !== actionGen) return;
+              sfx('gameOver');
+            });
             animBusy = false;
             render({ skipDeal: true });
           } else {
@@ -944,8 +953,13 @@ if (typeof document !== 'undefined') {
 
       animBusy = true;
       setActionsEnabled(false);
+      var gen = actionGen;
       flyCardsDiscard(selectedIds, function () {
-        after(80, finishDiscard);
+        if (gen !== actionGen) return;
+        after(80, function () {
+          if (gen !== actionGen) return;
+          finishDiscard();
+        });
       });
     }
 
@@ -1049,10 +1063,12 @@ if (typeof document !== 'undefined') {
       var shopArea = el('shop');
       if (!reduceMotion() && shopArea && !shopArea.hidden) {
         animBusy = true;
+        var gen = actionGen;
         shopArea.classList.remove('shop-enter');
         shopArea.classList.add('shop-exit');
         phaseTransition('exit');
         after(280, function () {
+          if (gen !== actionGen) return;
           shopArea.classList.remove('shop-exit');
           startRound({ deal: true });
           animBusy = false;
@@ -1066,6 +1082,8 @@ if (typeof document !== 'undefined') {
     }
 
     function restart() {
+      actionGen += 1;
+      scoreAnimToken += 1;
       animBusy = false;
       knownHandIds = {};
       displayedScore = 0;
@@ -1442,18 +1460,34 @@ if (typeof document !== 'undefined') {
       if (!state) return;
       opts = opts || {};
 
-      el('ante').textContent = state.ante;
-      el('round-type').textContent = roundTypeName(state.roundType);
-      el('target').textContent = state.target;
+      document.body.classList.toggle('phase-shop', state.phase === 'shop');
+      document.body.classList.toggle('phase-end', state.phase === 'won' || state.phase === 'lost');
 
-      if (typeof opts.scoreFrom === 'number' && !reduceMotion()) {
-        animateScoreCount(opts.scoreFrom, state.score);
-      } else {
-        displayedScore = state.score;
-        el('score').textContent = state.score;
+      // ショップ中はすでに次ラウンドへ進んでいる。得点欄も次ラウンドの初期値に揃える
+      var shownScore = state.score;
+      var shownTarget = state.target;
+      var shownPlays = state.playsLeft;
+      var shownDiscards = state.discardsLeft;
+      if (state.phase === 'shop') {
+        shownScore = 0;
+        shownTarget = getTargetScore(state.ante, state.roundType);
+        shownPlays = START_PLAYS;
+        shownDiscards = START_DISCARDS;
       }
 
-      var progress = Math.min(100, Math.floor((state.score / state.target) * 100) || 0);
+      el('ante').textContent = state.ante;
+      el('round-type').textContent = roundTypeName(state.roundType);
+      el('target').textContent = shownTarget;
+
+      if (state.phase !== 'shop' && typeof opts.scoreFrom === 'number' && !reduceMotion()) {
+        animateScoreCount(opts.scoreFrom, state.score);
+      } else {
+        if (state.phase === 'shop') scoreAnimToken += 1;
+        displayedScore = shownScore;
+        el('score').textContent = shownScore;
+      }
+
+      var progress = Math.min(100, Math.floor((shownScore / shownTarget) * 100) || 0);
       el('score-bar').style.width = progress + '%';
 
       var scoreboard = el('scoreboard');
@@ -1476,6 +1510,8 @@ if (typeof document !== 'undefined') {
         }
       }
       el('omamori-list').innerHTML = omaHtml;
+      var omaPanel = document.querySelector('.omamori-panel');
+      if (omaPanel) omaPanel.classList.toggle('is-empty', state.omamori.length === 0);
 
       var moneyEl = el('money');
       if (moneyEl) {
@@ -1487,13 +1523,13 @@ if (typeof document !== 'undefined') {
       if (playsEl) {
         playsEl.innerHTML =
           '<img class="hud-icon" src="assets/ui/play.svg" alt="" draggable="false" />' +
-          '<span>' + state.playsLeft + '</span>';
+          '<span>' + shownPlays + '</span>';
       }
       var discardsEl = el('discards');
       if (discardsEl) {
         discardsEl.innerHTML =
           '<img class="hud-icon" src="assets/ui/discard.svg" alt="" draggable="false" />' +
-          '<span>' + state.discardsLeft + '</span>';
+          '<span>' + shownDiscards + '</span>';
       }
 
       var handArea = el('hand');
@@ -1727,11 +1763,11 @@ if (typeof document !== 'undefined') {
           buyOmamori(parseInt(buy.getAttribute('data-buy'), 10));
           return;
         }
-        if (e.target.id === 'btn-reroll') {
+        if (e.target.closest('#btn-reroll')) {
           rerollShop();
           return;
         }
-        if (e.target.id === 'btn-leave-shop') {
+        if (e.target.closest('#btn-leave-shop')) {
           leaveShop();
         }
       });
