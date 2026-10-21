@@ -4,6 +4,8 @@
  */
 
 var assert = require('assert');
+var fs = require('fs');
+var vm = require('vm');
 var g = require('./game.js');
 
 function card(suit, rank) {
@@ -282,6 +284,113 @@ test('clearSelection: 空マップは cleared=0', function () {
   assert.strictEqual(r.cleared, 0);
   var r2 = g.clearSelection(null);
   assert.strictEqual(r2.cleared, 0);
+});
+
+// ---- AdSense ----
+
+function runAds(publisherId, hostname) {
+  var appended = [];
+  var element = {
+    async: false,
+    src: '',
+    setAttribute: function (name, value) {
+      this[name] = value;
+    }
+  };
+  var sandbox = {
+    window: {
+      HOSHIAME_ADS: { publisherId: publisherId },
+      location: { hostname: hostname },
+      document: {
+        createElement: function () {
+          return element;
+        },
+        head: {
+          appendChild: function (node) {
+            appended.push(node);
+          }
+        }
+      }
+    },
+    encodeURIComponent: encodeURIComponent
+  };
+  vm.runInNewContext(fs.readFileSync('./ads.js', 'utf8'), sandbox, { filename: 'ads.js' });
+  return appended;
+}
+
+function publisherId() {
+  var config = fs.readFileSync('./ads-config.js', 'utf8');
+  var match = config.match(/publisherId:\s*"([^"]*)"/);
+  assert.ok(match, 'ads-config.js に publisherId がある');
+  var hits = config.split(match[1]).length - 1;
+  assert.strictEqual(hits, 1, 'ID は ads-config.js の中でも1回だけ');
+  return match[1];
+}
+
+test('AdSense: 通常ホストでは head に自動広告スクリプトを入れる', function () {
+  var id = publisherId();
+  assert.ok(id.indexOf('ca-pub-') === 0);
+  var nodes = runAds(id, 'example.com');
+  assert.strictEqual(nodes.length, 1);
+  assert.strictEqual(nodes[0].async, true);
+  assert.strictEqual(nodes[0].crossorigin, 'anonymous');
+  assert.strictEqual(
+    nodes[0].src,
+    'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(id)
+  );
+});
+
+test('AdSense: ID が空ならスクリプトを入れない', function () {
+  assert.strictEqual(runAds('', 'example.com').length, 0);
+  assert.strictEqual(runAds('   ', 'localhost').length, 0);
+  assert.strictEqual(runAds(undefined, 'localhost').length, 0);
+});
+
+test('AdSense: GitHub Pages ではスクリプトを入れない', function () {
+  var id = publisherId();
+  assert.strictEqual(runAds(id, 'user.github.io').length, 0);
+  assert.strictEqual(runAds(id, 'github.io').length, 0);
+  assert.strictEqual(runAds(id, 'USER.GITHUB.IO').length, 0);
+  assert.strictEqual(runAds(id, 'localhost').length, 1);
+  assert.strictEqual(runAds(id, 'notgithub.io').length, 1);
+});
+
+test('ads.txt は指定の1行で、ca-pub ID は設定ファイルだけ', function () {
+  var id = publisherId();
+  var pub = id.replace(/^ca-/, '');
+  var ads = fs.readFileSync('./ads.txt', 'utf8').replace(/\r\n/g, '\n');
+  assert.strictEqual(ads, 'google.com, ' + pub + ', DIRECT, f08c47fec0942fa0\n');
+  var files = [
+    'index.html', 'privacy.html', 'operator.html', 'contact.html',
+    'ads.js', 'ads.txt', 'style.css', 'game.js', 'audio.js', 'bg-fx.js', 'README.md'
+  ];
+  files.forEach(function (file) {
+    var text = fs.readFileSync(file, 'utf8');
+    assert.strictEqual(text.indexOf(id), -1, file + ' にパブリッシャー ID がある');
+    assert.ok(!/[a-z0-9-]+\.vercel\.app/i.test(text), file + ' に vercel.app のホスト名がある');
+    assert.ok(!/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text), file + ' にメールアドレスがある');
+  });
+  var privacy = fs.readFileSync('./privacy.html', 'utf8');
+  assert.ok(privacy.indexOf('2026-10-21') !== -1);
+  assert.ok(privacy.indexOf('https://adssettings.google.com') !== -1);
+  assert.ok(privacy.indexOf('https://www.aboutads.info') !== -1);
+  assert.ok(privacy.indexOf('hoshiame-audio-v1') !== -1);
+  assert.ok(privacy.indexOf('href="contact.html"') !== -1);
+  assert.ok(privacy.indexOf('アクセス解析') !== -1);
+  var operator = fs.readFileSync('./operator.html', 'utf8');
+  assert.ok(operator.indexOf('a9toad / ジーノ') !== -1);
+  assert.ok(operator.indexOf('https://x.com/Genogeno_rex') !== -1);
+  var contact = fs.readFileSync('./contact.html', 'utf8');
+  assert.ok(contact.indexOf('@Genogeno_rex') !== -1);
+  assert.ok(contact.indexOf('mailto:') === -1);
+  ['index.html', 'privacy.html', 'operator.html', 'contact.html'].forEach(function (file) {
+    var html = fs.readFileSync(file, 'utf8');
+    assert.ok(html.indexOf('<script src="ads-config.js"></script>') !== -1, file);
+    assert.ok(html.indexOf('<script src="ads.js"></script>') !== -1, file);
+    assert.ok(html.indexOf('href="privacy.html"') !== -1, file);
+    assert.ok(html.indexOf('href="operator.html"') !== -1, file);
+    assert.ok(html.indexOf('href="contact.html"') !== -1, file);
+  });
 });
 
 // ---- まとめ ----
